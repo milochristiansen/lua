@@ -58,11 +58,20 @@ import "fmt"
 //	string.trimspace
 //	string.trimsuffix
 //	string.unquote
+// For more information about these extensions (including how to disable them) see the "README.md" file
+// for this package (not the main "lua" package!).
 func Open(l *lua.State) int {
 	l.NewTable(0, 32) // 11 standard functions (+ 6 DNI) + 13 nonstandard
 	tidx := l.AbsIndex(-1)
 	
 	l.SetTableFunctions(tidx, functions)
+	
+	l.Push("_NO_STRING_EXTS")
+	l.GetTableRaw(lua.RegistryIndex)
+	ok := l.ToBool(-1); l.Pop(1)
+	if !ok {
+		l.SetTableFunctions(tidx, extFunctions)
+	}
 	
 	l.Push("string")
 	l.PushIndex(tidx)
@@ -231,9 +240,9 @@ var functions = map[string]lua.NativeFunction{
 		l.Push(strings.ToUpper(str))
 		return 1
 	},
-	
-	// Below this point: Custom extensions
-	
+}
+
+var extFunctions = map[string]lua.NativeFunction{
 	"count": func(l *lua.State) int {
 		str := l.OptString(1, "")
 		sep := l.OptString(2, "")

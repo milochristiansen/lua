@@ -116,7 +116,6 @@ func (cf *callFrame) reqNxtOp(op opCode) instruction {
 
 func (cf *callFrame) getUp(i int) value {
 	if i < 0 || i >= len(cf.fn.uvDefs) {
-		println("A Out of range!")
 		return nil
 	}
 	if cf.fn.uvClosed[i] {
@@ -136,7 +135,6 @@ func (cf *callFrame) getUpLvl(i, lvl int) value {
 	}
 	
 	if i < 0 || i >= len(pf.fn.uvDefs) {
-		println("B Out of range!", i, pf.fn.uvDefs, pf.fn.proto.upVals)
 		return nil
 	}
 	if pf.fn.uvClosed[i] {

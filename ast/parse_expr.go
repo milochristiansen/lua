@@ -168,10 +168,10 @@ func (p *parser) tblConstruct() Expr {
 		}
 		vals = append(vals, p.expression())
 		
-		if !p.l.checkLook(tknSeperator) {
+		if !p.l.checkLook(tknSeperator, tknUnnecessary) {
 			break
 		}
-		p.l.getCurrent(tknSeperator)
+		p.l.getCurrent(tknSeperator, tknUnnecessary)
 	}
 	
 	p.l.getCurrent(tknCBracket)
@@ -356,19 +356,19 @@ func (p *parser) valUnOp() Expr {
 	case tknNot:
 		p.l.getCurrent(tknNot)
 		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpNot, Right: p.valPow()}, line)
+		return exprLine(&Operator{Op: OpNot, Right: p.valUnOp()}, line)
 	case tknLen:
 		p.l.getCurrent(tknLen)
 		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpLength, Right: p.valPow()}, line)
+		return exprLine(&Operator{Op: OpLength, Right: p.valUnOp()}, line)
 	case tknBXOr:
 		p.l.getCurrent(tknBXOr)
 		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpBinNot, Right: p.valPow()}, line)
+		return exprLine(&Operator{Op: OpBinNot, Right: p.valUnOp()}, line)
 	case tknSub:
 		p.l.getCurrent(tknSub)
 		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpUMinus, Right: p.valPow()}, line)
+		return exprLine(&Operator{Op: OpUMinus, Right: p.valUnOp()}, line)
 	default:
 		return p.valPow()
 	}
@@ -386,7 +386,7 @@ func (p *parser) valPow() Expr {
 	return l
 }
 
-// float | int | string | nil | true | false | ... | table constructor | function call | suffixedValue
+// float | int | string | nil | true | false | ... | table constructor | function call | varValue
 func (p *parser) value() Expr {
 	switch p.l.look.Type {
 	case tknOBracket:
@@ -484,3 +484,4 @@ func (p *parser) primaryValue() Expr {
 		panic("UNREACHABLE")
 	}
 }
+

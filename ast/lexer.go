@@ -197,6 +197,8 @@ func (lex *lexer) advance() {
 	// We are at the beginning of a token
 	lex.tokenline = lex.line
 	switch lex.char {
+	case ';':
+		lex.makeToken(tknUnnecessary)
 	case '+':
 		lex.makeToken(tknAdd)
 	case '-':
@@ -598,7 +600,9 @@ func (lex *lexer) matchNumber() {
 	if lex.match("0") && lex.nmatch("Xx") {
 		expo = "Pp"
 		hex = true
+		lex.addLexeme()
 		lex.nextchar()
+		lex.addLexeme()
 		lex.nextchar()
 		
 		// We need at least one digit.
@@ -638,6 +642,7 @@ func (lex *lexer) matchNumber() {
 	}
 	if iok {
 		lex.exlook = &token{n, tknInt, lex.tokenline}
+		return
 	}
 	lex.exlook = &token{n, tknFloat, lex.tokenline}
 }
@@ -699,6 +704,8 @@ func (lex *lexer) matchString(delim rune) {
 				lex.lexeme = append(lex.lexeme, '\'')
 			case '\\':
 				lex.lexeme = append(lex.lexeme, '\\')
+			case '0':
+				lex.lexeme = append(lex.lexeme, '\000')
 			case 'z':
 				for lex.match("\n\r \t") {
 					lex.nextchar()

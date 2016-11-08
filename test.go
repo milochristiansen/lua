@@ -214,16 +214,42 @@ func main() {
 	--end
 	
 	-- Accessing upvalues across "dead zones" (functions in the middle of the chain that do no contain the upvalue)
-	local x, y, z = -1, -2, -3
-	function a(f)
-		local r = f(function() return y end)
-		return r
-	end
-	print(a(function (f)
-		local r = f()
-		return r
-	end))
+	--local x, y, z = -1, -2, -3
+	--function a(f)
+	--	local r = f(function() return y end)
+	--	return r
+	--end
+	--print(a(function (f)
+	--	local r = f()
+	--	return r
+	--end))
 	
+	-- Conflicts in multiple assignment
+	--local a = {'a', 'b'}
+	--a[1], a = 1, 1
+	--a, a[1] = 1, 1 -- This works (as expected)
+	
+	-- This works correctly
+	--local a, i = {}, 3
+	--i, a[i] = i+1, 20
+	--print(a[3], i)
+	
+	-- Mutual clobber test, upvalues edition
+	--local a = {'a', 'b'}
+	--local b = a
+	--local function foo()
+	--	a[1], a = 1, 1
+	--end
+	--foo()
+	--assert(b[1] == 1)
+	
+	-- Mutual clobber test, locals+upvalues edition
+	-- Problem: Later set to "a" clobbering the index for the table set.
+	--local t = {}
+	--(function(a)
+	--	t[a], a = 10, 20
+	--end)(1)
+	--assert(t[1] == 10)
 	`
 	
 	run := true

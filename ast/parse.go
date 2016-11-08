@@ -32,6 +32,10 @@ type parser struct {
 
 // Parse reads Lua source into an AST using the types in this package.
 func Parse(source string, line int) (block []Stmt, err error) {
+	p := &parser{
+		l: newLexer(source, line),
+	}
+	
 	defer func(){
 		if x := recover(); x != nil {
 			//fmt.Println("Stack Trace:")
@@ -41,6 +45,7 @@ func Parse(source string, line int) (block []Stmt, err error) {
 			
 			switch e := x.(type) {
 			case luautil.Error:
+				e.Msg = fmt.Sprintf("%v On Line: %v", e.Msg, p.l.tokenline)
 				err = e
 			case error:
 				err = &luautil.Error{Err: e, Type: luautil.ErrTypWrapped}
@@ -49,10 +54,6 @@ func Parse(source string, line int) (block []Stmt, err error) {
 			}
 		}
 	}()
-	
-	p := &parser{
-		l: newLexer(source, line),
-	}
 	
 	for !p.l.checkLook(tknINVALID) {
 		block = append(block, p.statement())
@@ -71,19 +72,27 @@ func (p *parser) funcDeclStat(local bool) Stmt {
 	}, p.l.current.Line)
 	
 	// Read Name
-	ident := p.ident()
+	var ident Expr
 	hasSelf := false
-	if p.l.checkLook(tknColon) {
-		hasSelf = true
-		p.l.getCurrent(tknColon)
-		line := p.l.current.Line
+	if local {
 		p.l.getCurrent(tknName)
-		ident = exprLine(&TableAccessor{
-			Obj: ident,
-			Key: exprLine(&ConstIdent{
-				Value: p.l.current.Lexeme,
-			}, p.l.current.Line),
-		}, line)
+		ident = exprLine(&ConstIdent{
+			Value: p.l.current.Lexeme,
+		}, p.l.current.Line)
+	} else {
+		ident = p.ident()
+		if p.l.checkLook(tknColon) {
+			hasSelf = true
+			p.l.getCurrent(tknColon)
+			line := p.l.current.Line
+			p.l.getCurrent(tknName)
+			ident = exprLine(&TableAccessor{
+				Obj: ident,
+				Key: exprLine(&ConstIdent{
+					Value: p.l.current.Lexeme,
+				}, p.l.current.Line),
+			}, line)
+		}
 	}
 	node.(*Assign).Targets[0] = ident
 	
@@ -177,8 +186,12 @@ func (p *parser) statement() Stmt {
 			i = p.expression()
 			p.l.getCurrent(tknSeperator)
 			l = p.expression()
-			p.l.getCurrent(tknSeperator)
-			s = p.expression()
+			if p.l.checkLook(tknSeperator) {
+				p.l.getCurrent(tknSeperator)
+				s = p.expression()
+			} else {
+				s = exprLine(&ConstInt{Value: "1"}, p.l.current.Line)
+			}
 		} else {
 			for {
 				locals = append(locals, p.l.current.Lexeme)
@@ -234,7 +247,10 @@ func (p *parser) statement() Stmt {
 		c := 0
 		for !p.l.checkLook(tknSet) {
 			c++
-			targets = append(targets, p.ident())
+			p.l.getCurrent(tknName)
+			targets = append(targets, exprLine(&ConstIdent{
+				Value: p.l.current.Lexeme,
+			}, p.l.current.Line))
 			if !p.l.checkLook(tknSeperator) {
 				break
 			}
@@ -292,16 +308,16 @@ func (p *parser) statement() Stmt {
 		p.l.getCurrent(tknCParen)
 		return Stmt(p.funcCall(ident).(*FuncCall))
 	default:
-		ident := p.ident()
+		ident := p.suffixedValue()
 		line := p.l.current.Line
-		if p.l.checkLook(tknColon, tknOParen, tknOBracket, tknString) {
-			return Stmt(p.funcCall(ident).(*FuncCall))
+		if v, ok := ident.(*FuncCall); ok {
+			return Stmt(v)
 		}
 		
 		targets := []Expr{ident}
 		for p.l.checkLook(tknSeperator) {
 			p.l.getCurrent(tknSeperator)
-			targets = append(targets, p.ident())
+			targets = append(targets, p.suffixedValue())
 		}
 		p.l.getCurrent(tknSet)
 		vals := []Expr{p.expression()}

@@ -139,102 +139,46 @@ messages lack details about the exact problem. Generally it isn't too hard to tr
 to rework the error handler...
 
 
-`string` Library
+Changes:
 ------------------------------------------------------------------------------------------------------------------------
 
-The standard Lua string library is pretty pathetic in my opinion. Many simple operations are not possible without
-lots of complicated code and/or regular expressions. Of course this is probably because Lua is written in C, and C
-also has a pathetic string library (it doesn't even have an actual string type!).
+1.0.1
 
-I added some new string handling functions on top of the default. Some of these are similar to what Lua already has, but
-without the regular expression support, others fill critical holes in the default API, and a few are lazy conveniences.
+This version adds a bunch of tests (still not nearly as many as I would like), and fixes a ton of minor compiler errors.
+Most of the compiler errors were simple oversights, usually syntax constructs that I never used in my own code (and hence
+never tested).
 
-Most of these functions assume strings are UTF-8, be careful.
+The VM itself seems to be mostly bug free, but the compiler is a different story. I'm fixing bugs as fast as I discover
+them, but sometimes it's really tempting to just use `luac` and call it a day :P
 
-You will only have these functions if you import the `string` module, see the package example.
-
-* * *
-
-	function string.count(str, sub)
-
-Returns the number of non-overlapping occurrences of `sub` in `str`.
-
-* * *
-
-	function string.hasprefix(str, prefix)
-
-Returns true if `str` starts with `prefix`.
-
-* * *
-
-	function string.hassuffix(str, suffix)
-
-Returns true if `str` ends with `suffix`.
-
-* * *
-
-	function string.join(table, [sep])
-
-Joins all the values in `table` with `sep`. If `sep` is not specified then it defaults to ", "
-
-Yes, I know there is a function in the `table` module that does something similar.
-
-* * *
-
-	function string.replace(str, old, new, [n])
-
-Replaces `n` occurrences of `old` with `new` in `str`.
-If `n` < 0 then there is no limit on replacements.
-
-* * *
-
-	function string.split(str, sep, [n])
-
-Split `str` into `n` substrings at ever occurrence of `sep`.
-
-* `n` > 0: at most n substrings; the last substring will be the unsplit remainder
-* `n` == 0: the result is an empty table
-* `n` < 0: all substrings
-
-* * *
-
-	function string.splitafter(str, sep, [n])
-
-This is exactly like `strings.split`, except `sep` is retained as part of the substrings.
-
-* * *
-
-	function string.title(str)
-
-Convert the first character of every word in `str` to it's title case.
-
-* * *
-
-	function string.trim(str, cut)
-
-Returns `str` with any chars in `cut` removed from it's beginning and end.
-
-* * *
-
-	function string.trimprefix(str, prefix)
-
-Returns `str` with `prefix` removed from it's start. `str` is returned unchanged if it does not start with `prefix`.
-
-* * *
-
-	function string.trimspace(str)
-
-Returns `str` with all whitespace trimmed from it's beginning and end.
-
-* * *
-
-	function string.trimsuffix(str, suffix)
-
-Returns `str` with `suffix` removed from it's end. `str` is returned unchanged if it does not end with `suffix`.
-
-* * *
-
-	function string.unquote(str)
-
-If `str` begins and ends with a quote char (one of `` "'` ``) then it will be unquoted using the rules for the
-[Go](golang.org) language. This includes escape sequence expansion.
+* Fixed a issue with State.Pop possibly causing a panic if you pop values when the stack is empty (or if you try to pop
+  more values than the stack contains), it now does nothing in this case. (stack.go)
+* Added some tests for the VM native API (api_test.go)
+* Added some script tests based on the official Lua 5.3 test suite. These tests are not (even close to) complete yet,
+  (many) more are on the way. (script_test.go)
+* Added a `String` method to `STypeID` to match the one for `TypeID`. (value.go)
+* Made the custom `string` module extensions optional. (lmodstring/functions.go, lmodstring/README.md)
+* Fixed an issue with the `ForEachInTable` helper function, it left the table iterator object on the stack when it
+  returned. (api.go)
+* Fixed inexplicably missing lexer entry for the semicolon (I know it was there before, it must have gotten removed by
+  accident at some point). (ast/lexer.go)
+* Lexer errors now contain the line number where the problem resides (or at least close to it). (ast/parse.go)
+* Fixed that numeric for loops required all three arguments. I always use the full form, so I forgot that a short two
+  argument form is legal... (ast/parse.go)
+* Fixed that you could not repeat two unary operators in a row. (ast/parse_expr.go)
+* You may now use semicolons as well as commas as field separators in table constructors (did you know that was legal? I
+  didn't until I rechecked the BNF). (ast/parse_expr.go)
+* Fixed certain cases in expression/name parsing. Some things are less permissive, others are more. (ast/parse.go
+  ast/parse_expr.go)
+* Fixed certain multiple assignment statements involving table assignments and direct assignments to the same variable.
+  If the table assignment came first the direct assignment would clobber its register/upvalue and you would get an error
+  or (even worse) unexpected behavior. This affected statements such as the following: `local a = {}; a[1], a = 1, 1`
+  (compile.go)
+* All numeric constants were *always* being treated as floats, leading to errors when you tried to use a hexadecimal
+  constants (and probably other subtle issues). (ast/lexer.go)
+* You may now use the shorthand null string escape sequence ('\0'). Thank you to whoever wrote the Lua spec, not having
+  a proper list of valid escape sequences is really helpful /s. (ast/lexer.go)
+* Both sides of a shift are now converted to an *unsigned* integer for the duration of the shift, then converted back to
+  the proper signed type. This resolves some strangeness with bitwise shifts. (value.go)
+* Removed various debugging print statements that I forgot to remove earlier. The only ones still in were a few that
+  printed just before an error triggered, so it is unlikely anyone ever saw one... (all over the place)

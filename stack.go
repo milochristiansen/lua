@@ -289,12 +289,19 @@ func (stk *stack) SetAbs(index int, val value) {
 
 // Pop removes n values from the top of the current segment.
 func (stk *stack) Pop(n int) {
-	_, segN := stk.topBounds()
+	segC, segN := stk.topBounds()
 	
 	for i := 0; i < n; i++ {
+		if segN-i <= segC {
+			break
+		}
 		stk.data[segN-i] = nil
 	}
 	
+	if (segN+1)-n <= segC {
+		stk.data = stk.data[:segC+1]
+		return
+	}
 	stk.data = stk.data[:(segN+1)-n]
 }
 

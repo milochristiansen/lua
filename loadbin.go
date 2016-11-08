@@ -175,7 +175,6 @@ func (l loader) readConstants(fp *funcProto) error {
 			//  cvartag
 			// 0110 0100
 			// 0001 0100
-			println(t, 4 | (1 << 4))
 			return luautil.Error{Msg: "Bin Loader: Invalid constant type", Type: luautil.ErrTypBinLoader}
 		}
 	}

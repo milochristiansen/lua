@@ -64,13 +64,13 @@ func convInt(s string) (int64, bool) {
 	empty := true
 	
 	neg := false
-	if len(s) >= 1 && s[0] == '-' {
+	if len(s) >= i + 1 && s[i] == '-' {
 		neg = true
 		i += 1
 	}
 	
 	hex := false
-	if len(s) >= i + 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
+	if len(s) >= i + 2 && s[i] == '0' && (s[i + 1] == 'x' || s[i + 1] == 'X') {
 		i += 2
 		hex = true
 	}

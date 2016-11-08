@@ -54,6 +54,12 @@ func (typ TypeID) String() string {
 	return typeNames[typ]
 }
 
+var stypeNames = [...]string{"none", "int", "float"}
+
+func (typ STypeID) String() string {
+	return stypeNames[typ]
+}
+
 type value interface{}
 
 // See table.go for Table
@@ -514,9 +520,9 @@ func (l *State) arith(op opCode, a, b value) value {
 		ib, okb := tryInt(b)
 		if oka && okb {
 			if ib < 0 {
-				return ia >> uint64(-ib)
+				return int64(uint64(ia) >> uint64(-ib))
 			} else {
-				return ia << uint64(ib)
+				return int64(uint64(ia) << uint64(ib))
 			}
 		}
 
@@ -526,9 +532,9 @@ func (l *State) arith(op opCode, a, b value) value {
 		ib, okb := tryInt(b)
 		if oka && okb {
 			if ib < 0 {
-				return ia << uint64(-ib)
+				return int64(uint64(ia) << uint64(-ib))
 			} else {
-				return ia >> uint64(ib)
+				return int64(uint64(ia) >> uint64(ib))
 			}
 		}
 

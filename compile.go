@@ -278,9 +278,6 @@ func statement(n ast.Stmt, state *compState) {
 	switch nn := n.(type) {
 	case *ast.Assign:
 		if nn.LocalDecl {
-			// TODO: Redeclaring a local does not work properly.
-			// The problem is that the new initial value is not stored to the proper register.
-			
 			if len(nn.Values) == 0 {
 				state.addInst(createABC(opLoadNil, state.nextReg, len(nn.Targets)-1, 0), nn.Line())
 			} else {
@@ -318,11 +315,32 @@ func statement(n ast.Stmt, state *compState) {
 			return
 		}
 		
+		// My solution to table clobbering (where a non-table set clobbers an "earlier" table set by overwriting the
+		// register holding the table) if fairly inefficient, but it works. (note that this problem also effects upvalues
+		// and register keys for tables)
+		
 		// Lower targets
+		
+		// No-clobber lists
+		tblat := make(map[int][]int)
+		upat := make(map[int][]int)
+		keyat := make(map[int][]int)
+		
 		tdata := make([]identData, len(nn.Targets))
 		nextTemp := state.nextReg
 		for c, target := range nn.Targets {
 			data, usedregs := lowerIdent(target, state, nextTemp)
+			
+			// Populate the non-clobber tables
+			if data.isTable && !data.isUp {
+				tblat[data.itemIdx] = append(tblat[data.itemIdx], c)
+			} else if data.isUp {
+				upat[data.itemIdx] = append(upat[data.itemIdx], c)
+			}
+			if data.isTable && !isK(data.keyRK) {
+				keyat[data.keyRK] = append(keyat[data.keyRK], c)
+			}
+			
 			nextTemp += usedregs // 0, 1, or 2 (2 will only come up if the last element is a table access with an expression key)
 			tdata[c] = data
 		}
@@ -330,11 +348,49 @@ func statement(n ast.Stmt, state *compState) {
 		// Evaluate expressions
 		exprlist(nn.Values, state, nextTemp, len(nn.Targets))
 		
+		// Get the top index so we have a place to shift tables if we need to.
+		firstRes := nextTemp
+		nextTemp += len(nn.Targets)
+		
 		// Assign values
 		// Do the assignments in reverse order so that lower items do not clobber upper items
 		// (during expression execution for example)
 		for i := len(nn.Targets)-1; i >= 0; i-- {
-			tdata[i].Set(nextTemp+i)
+			data := tdata[i]
+			// Test if we need to shift any tables/upvalues/keys.
+			if !data.isTable {
+				if data.isUp {
+					// Don't clobber upvalues that we will need later...
+					if ds, ok := upat[data.itemIdx]; ok {
+						state.addInst(createABC(opGetUpValue, nextTemp, tdata[ds[0]].itemIdx, 0), data.line)
+						for _, d := range ds {
+							tdata[d].itemIdx = nextTemp
+							tdata[d].isUp = false
+						}
+						nextTemp++
+					}
+				} else {
+					// Or tables...
+					if ds, ok := tblat[data.itemIdx]; ok {
+						state.addInst(createABC(opMove, nextTemp, tdata[ds[0]].itemIdx, 0), data.line)
+						for _, d := range ds {
+							tdata[d].itemIdx = nextTemp
+						}
+						nextTemp++
+					}
+					
+					// Or registers holding table keys.
+					if ds, ok := keyat[data.itemIdx]; ok {
+						state.addInst(createABC(opMove, nextTemp, tdata[ds[0]].keyRK, 0), data.line)
+						for _, d := range ds {
+							tdata[d].keyRK = nextTemp
+						}
+						nextTemp++
+					}
+				}
+			}
+			
+			data.Set(firstRes+i)
 		}
 		
 		// This version is *too* clever. `a, b = b, a` won't work due to mutual clobbering.

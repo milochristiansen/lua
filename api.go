@@ -290,7 +290,6 @@ func (l *State) IsNil(i int) bool {
 func (l *State) ToUser(i int) interface{} {
 	v, ok := l.get(i).(*userData)
 	if !ok {
-		l.Println(l.get(i))
 		luautil.Raise("Invalid conversion to userdata: Value is not a user value.", luautil.ErrTypGenRuntime)
 	}
 	return v.data
@@ -502,17 +501,18 @@ func (l *State) GetIter(i int) {
 // Little to no error checking is done, as this is a simple convenience wrapper around
 // a common sequence of public API functions.
 func (l *State) ForEachInTable(t int, f func()) {
-	l.GetIter(t)
-	l.PushIndex(-1)
-	l.Call(0, 2)
+	// I never guessed that FORTH style stack comments would be useful in Go...
+	l.GetIter(t) // -- iter
+	l.PushIndex(-1) // iter -- iter iter
+	l.Call(0, 2) // iter -- key value
 	for !l.IsNil(-2) {
 		f()
 		
-		l.Pop(2)
-		l.PushIndex(-1)
-		l.Call(0, 2)
+		l.Pop(2) // key value --
+		l.PushIndex(-1) // iter -- iter iter
+		l.Call(0, 2) // iter -- key value
 	}
-	l.Pop(2)
+	l.Pop(3) // key value iter --
 }
 
 // Other
