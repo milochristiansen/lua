@@ -44,34 +44,6 @@ type callFrame struct {
 	retC    int // The actual number of items returned
 	retBase int // First value to return
 	retTo   int // Index (in previous frame) to place the first return value into.
-	
-	unclosed *ucUpVal
-}
-
-type ucUpVal struct {
-	next *ucUpVal
-	prev *ucUpVal
-	
-	fn  *function
-	idx int
-	
-	absidx int // Absolute index into the stack for local upvalues.
-}
-
-func (uc *ucUpVal) unlink() (*ucUpVal, bool) {
-	if uc.prev != nil && uc.next != nil {
-		uc.prev.next, uc.next.prev = uc.next, uc.prev
-		return nil, false
-	}
-	if uc.prev != nil {
-		uc.prev.next = nil
-		return nil, false
-	}
-	if uc.next != nil {
-		uc.next.prev = nil
-		return uc.next, true
-	}
-	return nil, true
 }
 
 // nxtOp gets the next opCode from a Lua function's code.
@@ -115,103 +87,109 @@ func (cf *callFrame) reqNxtOp(op opCode) instruction {
 }
 
 func (cf *callFrame) getUp(i int) value {
-	if i < 0 || i >= len(cf.fn.uvDefs) {
-		return nil
-	}
-	if cf.fn.uvClosed[i] {
-		return cf.fn.upVals[i]
-	}
-	if cf.fn.uvDefs[i].isLocal || cf.fn.uvAbsIdxs[i] > -1 {
-		return cf.stk.GetAbs(cf.fn.uvAbsIdxs[i])
-	}
-	return cf.getUpLvl(cf.fn.uvDefs[i].index, 2)
-}
-
-// Internal helper, don't use
-func (cf *callFrame) getUpLvl(i, lvl int) value {
-	pf := cf.stk.frame(lvl)
-	if pf == nil {
-		luautil.Raise("Unclosed parent upvalue and no parent frame available!", luautil.ErrTypMajorInternal)
+	if i < 0 || i >= len(cf.fn.up) {
+		luautil.Raise("Attempt to get out of range upvalue!", luautil.ErrTypMajorInternal)
 	}
 	
-	if i < 0 || i >= len(pf.fn.uvDefs) {
-		return nil
+	def := cf.fn.up[i]
+	if def.isLocal && !def.closed {
+		return cf.stk.GetAbs(def.absIdx)
 	}
-	if pf.fn.uvClosed[i] {
-		return pf.fn.upVals[i]
-	}
-	if pf.fn.uvDefs[i].isLocal || pf.fn.uvAbsIdxs[i] > -1 {
-		return pf.stk.GetAbs(pf.fn.uvAbsIdxs[i])
-	}
-	return cf.getUpLvl(pf.fn.uvDefs[i].index, lvl+1)
+	if !def.closed { panic("IMPOSSIBLE") }
+	return def.val
 }
 
 func (cf *callFrame) setUp(i int, v value) {
-	if i < 0 || i >= len(cf.fn.uvDefs) {
+	if i < 0 || i >= len(cf.fn.up) {
+		luautil.Raise("Attempt to set out of range upvalue!", luautil.ErrTypMajorInternal)
 		return
 	}
-	if cf.fn.uvClosed[i] {
-		cf.fn.upVals[i] = v
+	def := cf.fn.up[i]
+	if def.isLocal && !def.closed {
+		cf.stk.SetAbs(def.absIdx, v)
 		return
 	}
-	if cf.fn.uvDefs[i].isLocal || cf.fn.uvAbsIdxs[i] > -1 {
-		cf.stk.SetAbs(cf.fn.uvAbsIdxs[i], v)
-		return
-	}
-	cf.setUpLvl(cf.fn.uvDefs[i].index, 2, v)
+	if !def.closed { panic("IMPOSSIBLE") }
+	def.val = v
 }
 
-// Internal helper, don't use
-func (cf *callFrame) setUpLvl(i, lvl int, v value) {
-	pf := cf.stk.frame(lvl)
-	if pf == nil {
-		luautil.Raise("Unclosed parent upvalue and no parent frame available!", luautil.ErrTypMajorInternal)
-	}
+// Note that the closing functions close upvalues in the TOP frame(s) NOT the frame it was called on (unless called on the top frame).
+
+func (cf *callFrame) closeUpAbs(a int) {
+	//x := cf.stk.unclosed
+	//for x != nil {
+	//	println("< ", x.absIdx, ":", toString(cf.stk.GetAbs(x.absIdx)), ":", x.name)
+	//	x = x.next
+	//}
+	//println("> close:", a)
 	
-	if i < 0 || i >= len(pf.fn.uvDefs) {
-		return
+	nxt := cf.stk.unclosed
+	for nxt != nil {
+		if !nxt.isLocal || nxt.absIdx < 0 { panic("IMPOSSIBLE") } // All upvalues in actual use are in some way on the stack or already closed
+		if nxt.absIdx < a {
+			break // all values beyond this point are lower in the stack
+		}
+		//println(">   closing", nxt.absIdx)
+		
+		nxt.val = cf.stk.GetAbs(nxt.absIdx)
+		nxt.closed = true
+		nxt = nxt.next
 	}
-	if pf.fn.uvClosed[i] {
-		pf.fn.upVals[i] = v
-		return
-	}
-	if pf.fn.uvDefs[i].isLocal || pf.fn.uvAbsIdxs[i] > -1 {
-		pf.stk.SetAbs(pf.fn.uvAbsIdxs[i], v)
-		return
-	}
-	cf.setUpLvl(pf.fn.uvDefs[i].index, lvl+1, v)
+	cf.stk.unclosed = nxt
 }
 
+// Lazy convenience
 func (cf *callFrame) closeUp(a int) {
-	for uc := cf.unclosed; uc != nil; uc = uc.next {
-		def := uc.fn.uvDefs[uc.idx]
-		if uc.fn.uvClosed[uc.idx] { panic("IMPOSSIBLE") }
-		if def.index < a || !def.isLocal {
-			continue
-		}
-		r, nr := uc.unlink()
-		if nr {
-			cf.unclosed = r
-		}
-		uc.fn.uvClosed[uc.idx] = true
-		uc.fn.upVals[uc.idx] = cf.stk.GetAbs(uc.fn.uvAbsIdxs[uc.idx])
-	}
+	cf.closeUpAbs(cf.stk.absIndex(a))
 }
 
+// Lazy convenience
 func (cf *callFrame) closeUpAll() {
-	for uc := cf.unclosed; uc != nil; uc = uc.next {
-		def := uc.fn.uvDefs[uc.idx]
-		if uc.fn.uvClosed[uc.idx] { panic("IMPOSSIBLE") }
-		r, nr := uc.unlink()
-		if nr {
-			cf.unclosed = r
+	cf.closeUpAbs(cf.stk.absIndex(0))
+}
+
+// Find or create an unclosed *local* upvalue that matches the definition
+func (cf *callFrame) findUp(def upDef) *upValue {
+	idx := cf.stk.absIndex(def.index)
+	
+	node := cf.stk.unclosed
+	var pnode *upValue
+	for {
+		// Case order is very important!
+		switch {
+		case node == nil:
+			// No list exists yet, add this item as the head.
+			// This can only happen on the very first iteration, so check it last.
+			up := def.makeUp()
+			up.absIdx = idx
+			
+			cf.stk.unclosed = up
+			return up
+		case node.absIdx == idx:
+			// Found a matching item, return it directly
+			return node
+		case node.absIdx < idx:
+			// New item should be inserted just before this item
+			up := def.makeUp()
+			up.absIdx = idx
+			
+			if pnode == nil {
+				up.next = node
+				cf.stk.unclosed = up
+			} else {
+				up.next = node
+				pnode.next = up
+			}
+			return up
+		case node.next == nil:
+			// If item should be added to the end of the list
+			up := def.makeUp()
+			up.absIdx = idx
+			
+			node.next = up
+			return up
 		}
-		uc.fn.uvClosed[uc.idx] = true
-		if def.isLocal {
-			uc.fn.upVals[uc.idx] = cf.stk.GetAbs(uc.fn.uvAbsIdxs[uc.idx])
-			continue
-		}
-		uc.fn.upVals[uc.idx] = cf.getUpLvl(def.index, 1)
+		pnode = node
+		node = node.next
 	}
-	if cf.unclosed != nil { panic("IMPOSSIBLE") }
 }

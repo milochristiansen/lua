@@ -28,8 +28,12 @@ import "github.com/milochristiansen/lua/luautil"
 // isolated "segment". Once you add a new callFrame you cannot push and pop values in the previous
 // callFrame(s) segments, but you can modify them by index.
 type stack struct {
-	data   []value
-	frames []*callFrame
+	data     []value
+	frames   []*callFrame
+	
+	// List of all unclosed upvalues (which by definition are on the stack somewhere).
+	// This list is ordered higher indexes to lower indexes by requirement and construction.
+	unclosed *upValue
 }
 
 func newStack() *stack {

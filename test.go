@@ -44,6 +44,9 @@ func main() {
 	l.Push(lmodmath.Open)
 	l.Call(0, 0)
 	
+	// I try not to delete old code here, I just comment it out in case I need it later.
+	// Probably not the best idea, but it is interesting to come back and see the things
+	// I had so much... fun. (or not) debugging...
 	script := `
 	-- Tail call, self recursion, local functions:
 	--local function a(v)
@@ -227,12 +230,7 @@ func main() {
 	-- Conflicts in multiple assignment
 	--local a = {'a', 'b'}
 	--a[1], a = 1, 1
-	--a, a[1] = 1, 1 -- This works (as expected)
-	
-	-- This works correctly
-	--local a, i = {}, 3
-	--i, a[i] = i+1, 20
-	--print(a[3], i)
+	--a, a[1] = 1, 1
 	
 	-- Mutual clobber test, upvalues edition
 	--local a = {'a', 'b'}
@@ -244,34 +242,153 @@ func main() {
 	--assert(b[1] == 1)
 	
 	-- Mutual clobber test, locals+upvalues edition
-	-- Problem: Later set to "a" clobbering the index for the table set.
 	--local t = {}
 	--(function(a)
 	--	t[a], a = 10, 20
 	--end)(1)
 	--assert(t[1] == 10)
+	
+	-- Test methods
+	--local a = {}
+	--function a:x() return self end -- Note to "self": Don't forget that this adds an implicit self argument!
+	--print(a.x)
+	--print(a:x())
+	
+	-- Test truncating multiple returns
+	--local a, b, c = 1, 2, 3
+	--a, b, c = (table.unpack({"a", "b"}))
+	--print(a, b, c)
+	
+	-- Multiple values truncated, take two
+	--function f(...)
+	--	print((...))
+	--end
+	--f(1,2,3)
+	
+	-- Test closures sharing a upvalue
+	--local a = {}
+	--for i = 1, 10 do
+	--	a[i] = {
+	--		set = function(x)
+	--			i = x
+	--		end,
+	--		get = function()
+	--			return i
+	--		end,
+	--	}
+	--	if i == 3 then break end -- Make sure break closes properly for good measure
+	--end
+	--
+	--assert(a[2].get() == 2)
+	--a[2].set('a')
+	--assert(a[2].get() == 'a')
+	--assert(a[3].get() == 3)
+	--a[3].set('a')
+	--assert(a[3].get() == 'a')
+	
+	-- Test closing upvalues after an error
+	--local b = 2
+	--function f(x)
+	--	local a = 1
+	--	
+	--	b = function(y)
+	--		print(a, x, y)
+	--	end
+	--	error()
+	--end
+	--pcall(f, 2)
+	--b(3)
+	
+	-- Make sure generic for loops close properly
+	--local a = {1, 2, 3}
+	--local b = {}
+	--for k, v in ipairs(a) do
+	--	b[k] = {
+	--		set = function(x)
+	--			v = x
+	--		end,
+	--		get = function()
+	--			return v
+	--		end,
+	--	}
+	--end
+	--assert(b[2].get() == 2)
+	--b[2].set('a')
+	--assert(b[2].get() == 'a')
+	--assert(b[3].get() == 3)
+	--b[3].set('a')
+	--assert(b[3].get() == 'a')
+	
+	-- Closures with control variables, take two
+	--local a = {}
+	--local t = {"a", "b"}
+	--
+	--for i = 1, #t do
+	--	local k = t[i]
+	--	
+	--	a[i] = {
+	--		set = function(x, y)
+	--			print(i, k)
+	--			i = x
+	--			k = y -- get can't see k's new value, but set can (as shown by multiple calls) (same result for both compilers)
+	--			print(i, k)
+	--		end,
+	--		get = function()
+	--			return i, k
+	--		end
+	--	}
+	--	if i == 2 then
+	--		break
+	--	end
+	--end
+	--a[1].set(10, 20)
+	--print(a[1].get())
+	--print(a[2].get())
+	--a[2].set(10, 20)
+	--print(a[2].get())
+	
+	-- Closures in repeat-until loops
+	--local a = {}
+	--local i = 1
+	--repeat
+	--	local x = i
+	--	a[i] = function()
+	--		i = x + 1
+	--		return x
+	--	end
+	--until i > 10 or a[i]() ~= x
+	--assert(i == 11 and a[1]() == 1 and a[3]() == 3 and i == 4)
+	
 	`
 	
 	run := true
+	luac := true
 	
-	l.Println("luac:")
-	err := l.LoadTextExternal(strings.NewReader(script), "test.go", 0)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	//luac = false
 	
-	l.ListFunc(-1)
+	var err error
 	
-	if run {
-		l.Println("\nRun luac:")
-		err = l.PCall(0, 0)
+	if luac {
+		l.Println("luac:")
+		err = l.LoadTextExternal(strings.NewReader(script), "test.go", 0)
 		if err != nil {
+		
 			fmt.Println(err)
 			return
 		}
-	} else {
-		l.Pop(1)
+		
+		l.ListFunc(-1)
+		
+		if run {
+			l.Println("\nRun luac:")
+			err = l.PCall(0, 0)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		} else {
+			l.Pop(1)
+		}
 	}
 	
 	l.Println("\ngithub.com/milochristiansen/lua:")

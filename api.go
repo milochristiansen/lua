@@ -55,18 +55,26 @@ func (l *State) Push(v interface{}) {
 	case func(l *State) int:
 		v = &function{
 			native: v2,
-			uvDefs: []upValue{{name: "_ENV", index: -1}},
-			uvClosed: []bool{true},
-			upVals: []value{l.global},
-			uvAbsIdxs: []int{-1},
+			up: []*upValue{{
+					name: "_ENV",
+					index: -1,
+					closed: true,
+					val: l.global,
+					absIdx: -1,
+				},
+			},
 		}
 	case NativeFunction:
 		v = &function{
 			native: v2,
-			uvDefs: []upValue{{name: "_ENV", index: -1}},
-			uvClosed: []bool{true},
-			upVals: []value{l.global},
-			uvAbsIdxs: []int{-1},
+			up: []*upValue{{
+					name: "_ENV",
+					index: -1,
+					closed: true,
+					val: l.global,
+					absIdx: -1,
+				},
+			},
 		}
 	default:
 		v = &userData{
@@ -88,27 +96,27 @@ func (l *State) PushClosure(f NativeFunction, v ...int) {
 	
 	fn := &function{
 		native: f,
-		uvDefs: make([]upValue, c),
-		uvClosed: make([]bool, c),
-		upVals: make([]value, c),
-		uvAbsIdxs: make([]int, c),
+		up: make([]*upValue, c),
 	}
 	
 	// ALL native functions ALWAYS have their first upvalue set to the global table.
 	// This differs from standard Lua, but doesn't hurt anything.
-	fn.uvDefs[0].name = "_ENV"
-	fn.uvDefs[0].index = 0
-	fn.uvClosed[0] = true
-	fn.upVals[0] = l.global
-	fn.uvAbsIdxs[0] = -1
+	fn.up[0] = &upValue{
+		name: "_ENV",
+		index: -1,
+		closed: true,
+		val: l.global,
+		absIdx: -1,
+	}
 	
 	for i := 1; i < c; i++ {
-		fn.uvDefs[i].name = "(native upvalue)"
-		fn.uvDefs[i].index = -1
-		fn.uvClosed[i] = true
-		val := l.get(v[i-1])
-		fn.upVals[i] = val
-		fn.uvAbsIdxs[i] = -1
+		fn.up[i] = &upValue{
+			name: "(native upvalue)",
+			index: -1,
+			closed: true,
+			val: l.get(v[i-1]),
+			absIdx: -1,
+		}
 	}
 	
 	l.stack.Push(fn)
@@ -518,16 +526,22 @@ func (l *State) ForEachInTable(t int, f func()) {
 // Other
 
 // SetUpVal sets upvalue "i" in the function at "f" to the value at "v".
-// If the upvalue index is out of range or "f" is not a function false is returned
-// and nothing is done, else returns true and sets the upval.
+// If the upvalue index is out of range, "f" is not a function, or the upvalue
+// is not closed false is returned and nothing is done, else returns true and
+// sets the upvalue.
+// 
+// Any other functions that share this upvalue will also be affected!
 func (l *State) SetUpVal(f, i, v int) bool {
 	fn, ok := l.get(f).(*function)
-	if !ok || i >= len(fn.uvDefs) {
+	if !ok || i >= len(fn.up) {
 		return false
 	}
 	
-	fn.uvClosed[i] = true
-	fn.upVals[i] = l.get(v)
+	def := fn.up[i]
+	if !def.closed {
+		return false
+	}
+	def.val = l.get(v)
 	return true
 }
 
@@ -772,20 +786,29 @@ func (l *State) ListFunc(i int) {
 
 // Execution
 
+// Used to create the return values for the compiler API functions (nothing else!).
 func (l *State) asFunc(proto *funcProto, env *table) *function {
 	f := &function{
 		proto: *proto,
-		uvDefs: proto.upVals,
-		uvClosed: make([]bool, len(proto.upVals)),
-		upVals: make([]value, len(proto.upVals)),
-		uvAbsIdxs: make([]int, len(proto.upVals)),
+		up: make([]*upValue, len(proto.upVals)),
 	}
-	for i := range f.uvAbsIdxs {
-		f.uvAbsIdxs[i] = -1
+	for i := range f.up {
+		def := proto.upVals[i].makeUp()
+		
+		// Don't set name or index! name may come in from debug info, index is meaningless when closed.
+		def.closed = true
+		def.absIdx = -1
+		f.up[i] = def
 	}
 	
-	f.uvClosed[0] = true
-	f.upVals[0] = env
+	// Top level functions must have their first upvalue as _ENV
+	if len(f.up) > 0 {
+		if f.up[0].name != "_ENV" && f.up[0].name != "" {
+			luautil.Raise("Top level function without _ENV or _ENV in improper position.", luautil.ErrTypGenRuntime)
+		}
+		
+		f.up[0].val = env
+	}
 	
 	return f
 }
@@ -848,7 +871,7 @@ func (l *State) LoadText(in io.Reader, name string, env int) error {
 // This version looks for and runs "luac" to compile the chunk. Make sure luac is on
 // your path.
 // 
-// This functions is not safe for concurrent use.
+// This function is not safe for concurrent use.
 func (l *State) LoadTextExternal(in io.Reader, name string, env int) error {
 	outFile := os.TempDir() + "/dctech.lua.bin" // Go seems to lack a function to get a temporary file name, so this is unsafe for concurrent use!
 	cmd := exec.Command("luac", "-o", outFile, "-")
@@ -945,6 +968,10 @@ func (l *State) PCall(args, rtns int) (err error) {
 				buf = buf[:runtime.Stack(buf, true)]
 				trace = fmt.Sprintf("%v\n\nNative Trace:\n%s\n", trace, buf)
 			}
+			
+			// Before we strip the stack we need to close all upvalues in the section we will be stripping, just in
+			// case a closure was assigned to another upvalue.
+			l.stack.frames[len(l.stack.frames) - 1].closeUpAbs(top)
 			
 			// Make sure the stack is back to the way we found it, minus the function and it's arguments.
 			l.stack.frames = l.stack.frames[:frames]

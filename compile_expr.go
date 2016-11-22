@@ -64,7 +64,7 @@ func resolveVarHelper(v string, state *compState) (int, bool) {
 			return -1, false
 		}
 		nidx := len(state.f.upVals)
-		state.f.upVals = append(state.f.upVals, upValue{
+		state.f.upVals = append(state.f.upVals, upDef{
 			isLocal: local,
 			name: v,
 			index: idx,
@@ -166,7 +166,8 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 				if etyp == 0 {
 					state.addInst(createABC(opGetTable, reg, eidx, state.constRK(nObj.Value)), nObj.Line())
 				} else {
-					state.addInst(createABC(opGetTableUp, reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
+					//state.addInst(createABC(opGetTableUp, reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
+					state.addInst(createABC(opGetTableUp, reg, eidx, state.constRK(nObj.Value)), nObj.Line())
 				}
 				idx = reg
 			case 2:
@@ -199,7 +200,8 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 				data.itemIdx = eidx
 				data.isUp = false
 			} else {
-				data.itemIdx = 0
+				//data.itemIdx = 0
+				data.itemIdx = eidx
 				data.isUp = true
 			}
 			data.isTable = true
@@ -231,7 +233,8 @@ func lowerIdentHelper(n *ast.TableAccessor, state *compState, data *identData) {
 			if etyp == 0 {
 				state.addInst(createABC(opGetTable, data.reg, eidx, state.constRK(nObj.Value)), nObj.Line())
 			} else {
-				state.addInst(createABC(opGetTableUp, data.reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
+				//state.addInst(createABC(opGetTableUp, data.reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
+				state.addInst(createABC(opGetTableUp, data.reg, eidx, state.constRK(nObj.Value)), nObj.Line())
 			}
 			rk, _ := expr(n.Key, state, data.reg+1, false).RK()
 			state.f.code = append(state.f.code, createABC(opGetTable, data.reg, data.reg, rk))
@@ -307,8 +310,8 @@ type exprData struct {
 }
 
 // -1 for unlimited.
-// 0 does nothing is mayMulti is false
-// if mayMulti is false items above 1 are taken care of vial an inserted LOADNIL
+// 0 does nothing if mayMulti is false
+// if mayMulti is false items above 1 are taken care of via an inserted LOADNIL
 func (e exprData) setResults(c int) {
 	state := e.state
 	if !e.mayMulti {
@@ -386,6 +389,7 @@ func (e exprData) RK() (int, bool) {
 	}
 }
 
+// The caller never needs to know if boolRev is set (since that always comes from the caller they already know)
 func (e exprData) Bool() (patchList, bool) {
 	state := e.state
 	switch {
@@ -697,9 +701,18 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			rtn.reg = idx
 		}
 	case *ast.Parens:
-		ex := expr(ee.Inner, state, reg, boolRev)
-		ex.setResults(1)
-		return ex
+		switch eee := ee.Inner.(type) {
+		case *ast.FuncCall:
+			compileCall(eee, state, reg, 1, false)
+			rtn.register = true
+		case *ast.ConstVariadic:
+			state.f.isVarArg = 1
+			state.addInst(createABC(opVarArg, reg, 2, 0), eee.Line())
+			rtn.register = true
+		default:
+			ex := expr(ee.Inner, state, reg, boolRev)
+			return ex
+		}
 	case *ast.ConstInt:
 		rtn.constant = state.constK(toInt(ee.Value))
 	case *ast.ConstFloat:

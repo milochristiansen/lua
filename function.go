@@ -34,7 +34,7 @@ type funcProto struct {
 	code       []instruction
 	prototypes []funcProto
 	lineInfo   []int // Debug info
-	upVals     []upValue
+	upVals     []upDef
 	localVars  []localVar // Debug info
 
 	source          string // Debug info
@@ -168,12 +168,39 @@ type localVar struct {
 	ePC  int32
 }
 
+type upDef struct {
+	// Is this upvalue a reference to one of its parent's locals? (Else it
+	// is a reference to one of its parent's upvalues)
+	isLocal bool 
+	index   int // Index into the parent function's locals or upvalues
+	name    string // Debug info
+}
+
+func (def upDef) makeUp() *upValue {
+	return &upValue{
+		isLocal: def.isLocal,
+		index: def.index,
+		name: def.name,
+		
+		absIdx: -1,
+	}
+}
+
+// Superset of upDef
 type upValue struct {
 	// Is this upvalue a reference to one of its parent's locals? (Else it
 	// is a reference to one of its parent's upvalues)
 	isLocal bool 
 	index   int // Index into the parent function's locals or upvalues
 	name    string // Debug info
+	
+	// closure information
+	closed  bool
+	val     value // closed
+	absIdx  int // isLocal && !closed (absolute stack index)
+	
+	// Unclosed link info, nil if not part of the unclosed list (the head pointer is part of the stack)
+	next *upValue
 }
 
 // NativeFunction is the prototype to which native API functions must conform.
@@ -183,19 +210,19 @@ type NativeFunction func(l *State) int
 type function struct {
 	proto  funcProto
 	native NativeFunction
-
-	uvDefs    []upValue
-	uvClosed  []bool
-	upVals    []value
-	uvAbsIdxs []int
+	
+	up []*upValue
 }
 
 // addUp adds a new up value to the function and returns it's index.
 func (f *function) addUp(v value) int {
-	i := len(f.uvDefs)
-	f.uvDefs = append(f.uvDefs, upValue{})
-	f.uvClosed = append(f.uvClosed, true)
-	f.upVals = append(f.upVals, v)
-	f.uvAbsIdxs = append(f.uvAbsIdxs, -1)
+	i := len(f.up)
+	f.up = append(f.up, &upValue{
+		closed: true,
+		val: v,
+		name: "(native upvalue)",
+		index: -1,
+		absIdx: -1,
+	})
 	return i
 }

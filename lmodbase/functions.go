@@ -200,13 +200,13 @@ var functions = map[string]lua.NativeFunction{
 		l.Push(true)
 		l.Insert(1)
 		
-		err := l.PCall(l.AbsIndex(-1) - 1, -1)
+		err := l.PCall(l.AbsIndex(-1) - 2, -1)
 		if err != nil {
 			l.Push(false)
 			l.Push(err.Error())
 			return 2
 		}
-		return l.AbsIndex(-1)
+		return l.AbsIndex(-1) - 1
 	},
 	"print": func(l *lua.State) int {
 		top := l.AbsIndex(-1)

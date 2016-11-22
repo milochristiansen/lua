@@ -477,7 +477,7 @@ func init() {
 			flimit, okb := tryFloat(limit)
 			fstep, okc := tryFloat(step)
 			if !(oka && okb && okc) {
-				luautil.Raise("All three values passed to a numeric for loop must be numeric!", luautil.ErrTypGenRuntime)
+				luautil.Raise("All values passed to a numeric for loop must be numeric!", luautil.ErrTypGenRuntime)
 			}
 			
 			l.stack.Set(a, finit - fstep)
@@ -492,6 +492,7 @@ func init() {
 			a, c := i.a(), i.c()
 			
 			// Clear the upper parts of the stack so the results of the iterator call will be at a known fixed index.
+			// TODO: Do I need to close upvalues here?
 			segC, _ := l.stack.bounds(-1)
 			l.stack.data = l.stack.data[:segC + a + 4]
 			
@@ -552,33 +553,22 @@ func init() {
 			p := me.fn.proto.prototypes[i.bx()]
 			
 			f := &function{
-				proto: p,  
-				uvDefs: p.upVals,
-				uvClosed: make([]bool, len(p.upVals)),
-				upVals: make([]value, len(p.upVals)),
-				uvAbsIdxs: make([]int, len(p.upVals)),
+				proto: p,
+				up: make([]*upValue, len(p.upVals)),
 			}
 			
 			// luac seems to set isLocal for _ENV, but only for the top level function.
-			// Since Call automatically closes the _ENV value for the top level function this
-			// should not make any real difference, but it's weird...
+			// Since the compile functions automatically close the _ENV value for the top
+			// level function this should not make any real difference, but it's weird...
 			
-			// Add all upvalues to the unclosed list:
-			for i, def := range f.uvDefs {
-				ouc := me.unclosed
-				me.unclosed = &ucUpVal{
-					prev: nil,
-					next: me.unclosed,
-					fn: f,
-					idx: i,
-				}
+			// Create/fetch upvalues:
+			// Iterate in reverse so that the unclosed list ends up in the right order.
+			for i := len(f.up) - 1; i >= 0; i-- {
+				def := p.upVals[i]
 				if def.isLocal {
-					f.uvAbsIdxs[i] = l.stack.absIndex(def.index)
+					f.up[i] = me.findUp(def)
 				} else {
-					f.uvAbsIdxs[i] = me.fn.uvAbsIdxs[def.index]
-				}
-				if ouc != nil {
-					ouc.prev = me.unclosed
+					f.up[i] = me.fn.up[def.index]
 				}
 			}
 			

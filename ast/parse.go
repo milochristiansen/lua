@@ -88,7 +88,7 @@ func (p *parser) funcDeclStat(local bool) Stmt {
 			p.l.getCurrent(tknName)
 			ident = exprLine(&TableAccessor{
 				Obj: ident,
-				Key: exprLine(&ConstIdent{
+				Key: exprLine(&ConstString{
 					Value: p.l.current.Lexeme,
 				}, p.l.current.Line),
 			}, line)

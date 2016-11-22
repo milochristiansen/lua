@@ -6,9 +6,9 @@ This is a Lua 5.3 VM and compiler written in [Go](http://golang.org/). This is i
 programs, with minimal fuss and bother.
 
 I have been using this VM/compiler as the primary script host in Rubble (a scripted templating system used to generate
-data files for the game Dwarf Fortress) for over a year now, so they are fairly well tested. Speaking of tests: No formal
-unit tests are provided. Testing was done by running under real-world conditions with Rubble, and in Rubble's built-in
-template testing system (it is not appropriate to distribute these tests with this library for obvious reasons).
+data files for the game Dwarf Fortress) for over a year now, so they are fairly well tested. In addition to the real-world
+"testing" that this has received I am slowly adding proper tests based on the official Lua test suite. These tests are
+far from complete, but are slowly getting more so as time passes.
 
 Most (if not all) of the API functions may cause a panic, but only if things go REALLY wrong. If a function does not
 state that it can panic or "raise an error" it will only do so if a critical internal assumption proves to be wrong
@@ -47,16 +47,45 @@ If you want to use a third-party compiler it will need to produce binaries with 
 
 When building the reference compiler on most systems these settings should be the default.
 
+The VM API has a function that wraps `luac` to load code, but the way it does this may or may not fit your needs. To use
+this wrapper you will need to have `luac` on your path or otherwise placed so the VM can find it. See the documentation
+for `State.LoadTextExternal` for more information. Keep in mind that due to limitations in Go and `luac`, this function
+is not reentrant! If you need concurrency support it would be better to use `State.LoadBinary` and write your own wrapper.
+
 The default compiler provided by this library does not support constant folding, and some special instructions are not
 used at all (instead preferring simpler sequences of other instructions). For example TESTSET is never generated, TEST
 is used in all cases (largely because it would greatly complicate the compiler if I tried to use TESTSET where possible).
 Expressions use a simple "recursive" code generation style, meaning that it wastes registers like crazy in some (rare)
 cases.
 
+One of the biggest code quality offenders is `or` and `and`, as they can result in sequences like this one:
+
+	[4]   LT        A:1  B:r(0)   C:k(2)  ; CK:5
+	[5]   JMP       A:0  SBX:1            ; to:7
+	[6]   LOADBOOL  A:2  B:1      C:1
+	[7]   LOADBOOL  A:2  B:0      C:0
+	[8]   TEST      A:2           C:1
+	[9]   JMP       A:0  SBX:7            ; to:17
+	[10]  EQ        A:1  B:r(1)   C:k(3)  ; CK:<nil>
+	... (7 more instructions to implement next part of condition)
+
+As you can see this is terrible. That sequence would be better written as:
+
+	[4]   LT        A:1  B:r(0)   C:k(2)  ; CK:5
+	[5]   JMP       A:0  SBX:2            ; to:8
+	[6]   EQ        A:1  B:r(1)   C:k(3)  ; CK:<nil>
+	... (1 more instruction to implement next part of condition)
+
+But the current expression compiler is not smart enough to do it that way. Luckily this is the worst offender, most
+things produce code that is very close or identical to what `luac` produces. Note that the reason why this code is so
+bad is entirely because the expression used `or` (and the implementation of `and` and `or` is very bad).
+
 The compiler provides an implementation of a `continue` keyword, but the keyword definition in the lexer is commented
 out. If you want `continue` all you need to do is uncomment the indicated line (near the top of `ast/lexer.go`). There
 is also a flag in the VM that *should* make tables use 0 based indexing. This feature has received minimal testing, so
 it probably doesn't work properly. If you want to try 0 based indexing just set the variable `TableIndexOffset` to 0.
+Note that `TableIndexOffset` is strictly a VM setting, the standard modules do not respect this setting (for example the
+`table` module and `ipairs` will still insist on using 1 as the first index).
 
 
 Missing Stuff:
@@ -141,6 +170,34 @@ to rework the error handler...
 
 Changes:
 ------------------------------------------------------------------------------------------------------------------------
+
+1.0.2
+
+More tests, more (compiler) bugs fixed. Damn compiler will be the death of me yet...
+
+In addition to the inevitable compiler bugs I also fixed the way the VM handles upvalues. Before I was giving each
+closure its own copy of each upvalue, so multiple closures never properly shared values. This change fixes several
+subtle (and several not so subtle) bugs.
+
+Oh, and `pcall` works now (it didn't work at all before. Sorry, I never used it).
+
+* Added more script tests. I still have a lot more to do... (script_test.go)
+* Fixed incorrect compilation of method declarations (`function a:x() end`). Depressingly the issue was only one
+  incorrect word, but it resulted in *very* wrong results (I am really starting to remember why I hated writing the
+  compiler, the VM was fun, the compiler... not.) (ast/parse.go)
+* Parenthesized expression that would normally (without the parenthesis) return multiple values (for example: `(...)`)
+  were not properly truncating the result to a single value. (compile_expr.go)
+* Fixed a semi-major VM issue with upvalues. Closures that should have a single shared upvalue were instead each using
+  their own private copy after said upvalue was closed. This required an almost total rewrite of the way upvalues are
+  stored internally. (all over the place, but mainly callframe.go, function.go, api.go, and vm.go)
+* JMP instructions created by `break` and `continue` statements are now properly patched by the compiler to close any
+  upvalues there may be. (compile.go)
+* Fixed the `pcall` script function so it actually works. (lmodbase/functions.go)
+* On a recovered error each stack frame's upvalues are closed before the stack is stripped. This corrects incorrect
+  behavior that arises when a function stores a closure to an unclosed upvalue then errors out (the closure may still be
+  referenced, but it's upvalues may be invalid). (api.go, callframe.go)
+
+* * *
 
 1.0.1
 

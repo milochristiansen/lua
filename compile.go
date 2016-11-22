@@ -110,7 +110,7 @@ type jumpDat struct {
 
 func (from jumpDat) patch(f *funcProto, to jumpDat) {
 	if from.regs < to.regs {
-		luautil.Raise(fmt.Sprint("Unconditional jump on line %v (to line %v) into the scope of one or more local variables", from.line, to.line), luautil.ErrTypGenSyntax) // TODO: Better errors
+		luautil.Raise(fmt.Sprintf("Unconditional jump on line %v (to line %v) into the scope of one or more local variables", from.line, to.line), luautil.ErrTypGenSyntax) // TODO: Better errors
 	}
 	
 	f.code[from.pc].setSBx(mkoffset(from.pc, to.pc))
@@ -131,6 +131,14 @@ type patchList []int
 func (p patchList) patch(f *funcProto, pc int) {
 	for _, ipc := range p {
 		f.code[ipc].setSBx(mkoffset(ipc, pc)) // -1 to correct for the automatic +1 to the PC after each instruction.
+	}
+} 
+
+// Patch the A field of the JMPs to close values at "reg" and above in addition to the normal PC patching.
+func (p patchList) loop(f *funcProto, pc, reg int) {
+	for _, ipc := range p {
+		f.code[ipc].setA(reg)
+		f.code[ipc].setSBx(mkoffset(ipc, pc))
 	}
 } 
 
@@ -165,7 +173,7 @@ func compile(f *ast.FuncDecl, parent *compState) *funcProto {
 	state := &compState{
 		f: &funcProto{
 			source: name,
-			upVals: []upValue{
+			upVals: []upDef{
 				{
 					index: 0,
 					name: "_ENV",
@@ -222,6 +230,10 @@ func preppedBlock(block []ast.Stmt, state *compState, epilogue int) {
 		statement(n, state)
 	}
 	
+	closeBlock(block, state, epilogue, 0)
+}
+
+func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 	// Patch this block's local ePC values
 	stuff := sliceutil.Pop(&state.blocks).(*blockStuff)
 	locals := 0
@@ -238,7 +250,9 @@ func preppedBlock(block []ast.Stmt, state *compState, epilogue int) {
 	// Issue a dummy JMP to close any upvalues if needed.
 	// What ever happened to the CLOSE instruction? Using JMP seems weird.
 	if len(state.blocks) != 0 && stuff.hasUp {
-		state.addInst(createAsBx(opJump, state.nextReg+1, 0), block[len(block)-1].Line())
+		state.addInst(createAsBx(opJump, state.nextReg+1, off), block[len(block)-1].Line())
+	} else if off != 0 {
+		state.addInst(createAsBx(opJump, 0, off), block[len(block)-1].Line())
 	}
 	
 	// Resolve this block's labels
@@ -463,27 +477,38 @@ func statement(n ast.Stmt, state *compState) {
 		sliceutil.Push(&state.breaks, patchList([]int{}))
 		sliceutil.Push(&state.continues, patchList([]int{}))
 		block(nn.Block, state)
-		sliceutil.Pop(&state.continues).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 		state.addInst(createAsBx(opJump, 0, mkoffset(len(state.f.code), begin)), nn.Line()) // Go back to the top
 		if list != nil {
 			list.patch(state.f, len(state.f.code)) // Set the false jump target to the next instruction (does not exist yet).
 		}
-		sliceutil.Pop(&state.breaks).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 	case *ast.RepeatUntilLoop:
 		begin := len(state.f.code)
 		sliceutil.Push(&state.breaks, patchList([]int{}))
 		sliceutil.Push(&state.continues, patchList([]int{}))
-		block(nn.Block, state)
-		sliceutil.Pop(&state.continues).(patchList).patch(state.f, len(state.f.code))
+		
+		// I hate repeat-until.
+		// I need to manually parse the block here, then jump through hoops to make sure the upvalues are not closed
+		// before the expression is parsed. It's nasty.
+		prepBlock(state)
+		for _, n := range nn.Block {
+			statement(n, state)
+		}
+		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 		list, k := expr(nn.Cond, state, state.nextReg, false).Bool()
 		if list == nil {
 			if k {
-				state.addInst(createAsBx(opJump, 0, mkoffset(len(state.f.code), begin)), nn.Line()) // Go back to the top
+				closeBlock(nn.Block, state, 0, mkoffset(len(state.f.code), begin))
+			} else {
+				closeBlock(nn.Block, state, 0, 0)
 			}
 		} else {
-			list.patch(state.f, begin) // Set the false jump target to the loop beginning.
+			closeBlock(nn.Block, state, 0, 0)
+			list.loop(state.f, begin, state.nextReg+1) // Set the false jump target to the loop beginning.
 		}
-		sliceutil.Pop(&state.breaks).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		
 	case *ast.ForLoopNumeric:
 		prepBlock(state)
 		initReg, nreg := state.nextReg, state.nextReg
@@ -502,9 +527,9 @@ func statement(n ast.Stmt, state *compState) {
 		sliceutil.Push(&state.continues, patchList([]int{}))
 		preppedBlock(nn.Block, state, 1)
 		lbottom := len(state.f.code)
-		sliceutil.Pop(&state.continues).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 		state.addInst(createAsBx(opForLoop, initReg, mkoffset(lbottom, ltop)), nn.Line())
-		sliceutil.Pop(&state.breaks).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 		prep.patch(state.f, lbottom)
 	case *ast.ForLoopGeneric:
 		initReg := state.nextReg
@@ -525,9 +550,9 @@ func statement(n ast.Stmt, state *compState) {
 		preppedBlock(nn.Block, state, 2)
 		state.addInst(createABC(opTForCall, initReg, 0, len(nn.Locals)), nn.Line())
 		lbottom := len(state.f.code)
-		sliceutil.Pop(&state.continues).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 		state.addInst(createAsBx(opTForLoop, initReg+2, mkoffset(lbottom, ltop)), nn.Line())
-		sliceutil.Pop(&state.breaks).(patchList).patch(state.f, len(state.f.code))
+		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
 		begin.patch(state.f, lbottom-1)
 	case *ast.Goto:
 		if nn.IsBreak {

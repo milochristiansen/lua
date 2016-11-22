@@ -195,9 +195,12 @@ func (l loader) readUpValues(fp *funcProto) error {
 		return err
 	}
 
-	ups := make([]upValue, n)
+	ups := make([]upDef, n)
 	for i := range v {
-		ups[i].isLocal, ups[i].index = v[i].IsLocal != 0, int(v[i].Index)
+		ups[i] = upDef{
+			isLocal: v[i].IsLocal != 0,
+			index: int(v[i].Index),
+		}
 	}
 	fp.upVals = ups
 	return nil
