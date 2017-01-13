@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -71,11 +71,11 @@ func (l loader) readString() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	if sb == 0 {
 		return "", nil
 	}
-	
+
 	// For some stupid reason they use a size_t value for this...
 	size := 0
 	if l.b32 {
@@ -97,8 +97,8 @@ func (l loader) readString() (string, error) {
 		}
 		size = int(s)
 	}
-	
-	rstr := make([]byte, size - 1)
+
+	rstr := make([]byte, size-1)
 	err = l.read(rstr)
 	if err != nil {
 		return "", err
@@ -199,7 +199,7 @@ func (l loader) readUpValues(fp *funcProto) error {
 	for i := range v {
 		ups[i] = upDef{
 			isLocal: v[i].IsLocal != 0,
-			index: int(v[i].Index),
+			index:   int(v[i].Index),
 		}
 	}
 	fp.upVals = ups

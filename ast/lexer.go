@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -28,7 +28,7 @@ import "github.com/milochristiansen/lua/luautil"
 
 const (
 	tknINVALID = iota - 1 // Invalid
-	
+
 	// Keywords
 	tknAnd
 	tknOr
@@ -53,7 +53,7 @@ const (
 	tknFalse
 	tknNil
 	tknContinue // Not used by the default parser.
-	
+
 	// Operators
 	tknAdd         // +
 	tknSub         // - (also unary minus)
@@ -88,7 +88,7 @@ const (
 	tknCBracket    // }
 	tknOParen      // (
 	tknCParen      // )
-	
+
 	// Values
 	tknInt
 	tknFloat
@@ -97,29 +97,29 @@ const (
 )
 
 var keywords = map[string]int{
-	"and": tknAnd,
-	"or": tknOr,
-	"not": tknNot,
-	"while": tknWhile,
-	"for": tknFor,
+	"and":    tknAnd,
+	"or":     tknOr,
+	"not":    tknNot,
+	"while":  tknWhile,
+	"for":    tknFor,
 	"repeat": tknRepeat,
-	"until": tknUntil,
-	"in": tknIn,
-	"do": tknDo,
-	"break": tknBreak,
+	"until":  tknUntil,
+	"in":     tknIn,
+	"do":     tknDo,
+	"break":  tknBreak,
 	//"continue": tknContinue, // Uncomment to enable the "continue" keyword.
-	"end": tknEnd,
-	"if": tknIf,
-	"then": tknThen,
-	"else": tknElse,
-	"elseif": tknElseif,
+	"end":      tknEnd,
+	"if":       tknIf,
+	"then":     tknThen,
+	"else":     tknElse,
+	"elseif":   tknElseif,
 	"function": tknFunction,
-	"goto": tknGoto,
-	"local": tknLocal,
-	"return": tknReturn,
-	"true": tknTrue,
-	"false": tknFalse,
-	"nil": tknNil,
+	"goto":     tknGoto,
+	"local":    tknLocal,
+	"return":   tknReturn,
+	"true":     tknTrue,
+	"false":    tknFalse,
+	"nil":      tknNil,
 }
 
 func keyword(s string) int {
@@ -167,7 +167,7 @@ func newLexer(source string, line int) *lexer {
 
 	lex.strdepth = 0
 	lex.objdepth = 0
-	
+
 	// prime the pump
 	lex.nextchar()
 	lex.nextchar()
@@ -175,7 +175,7 @@ func newLexer(source string, line int) *lexer {
 	lex.look = &token{"INVALID", tknINVALID, lex.tokenline}
 	lex.advance()
 	lex.advance()
-	
+
 	return lex
 }
 
@@ -187,13 +187,13 @@ func (lex *lexer) advance() {
 		lex.exlook = &token{"EOF", tknINVALID, lex.tokenline}
 		return
 	}
-	
+
 	lex.eatWS()
 	if lex.eof {
 		lex.exlook = &token{"EOF", tknINVALID, lex.tokenline}
 		return
 	}
-	
+
 	// We are at the beginning of a token
 	lex.tokenline = lex.line
 	switch lex.char {
@@ -286,7 +286,7 @@ func (lex *lexer) advance() {
 			lex.makeToken(tknOIndex)
 			break
 		}
-		
+
 		i := 0
 		lex.nextchar()
 		if lex.eof {
@@ -303,20 +303,20 @@ func (lex *lexer) advance() {
 		if lex.eof {
 			luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
 		}
-		
-		next:
+
+	next:
 		for {
 			if lex.eof {
 				luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
 			}
-			
+
 			if lex.match("]") && lex.nmatch("=]") {
 				// Make sure the closing long bracket is the same level as the opener
 				lex.nextchar()
 				if lex.eof {
 					luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
 				}
-				
+
 				k := 0
 				if i > 0 {
 					for ; k < i; k++ {
@@ -329,7 +329,7 @@ func (lex *lexer) advance() {
 						}
 					}
 				}
-				
+
 				if !lex.match("]") {
 					if k > 0 {
 						stuff := make([]rune, k)
@@ -371,7 +371,7 @@ func (lex *lexer) advance() {
 				lex.addLexeme()
 				lex.nextchar()
 			}
-			
+
 			ident := string(lex.lexeme)
 			lex.exlook = &token{ident, keyword(ident), lex.tokenline}
 		} else if lex.matchNumeric() {
@@ -380,7 +380,7 @@ func (lex *lexer) advance() {
 			luautil.Raise("Illegal character '"+string([]rune{lex.char})+"' while lexing source", luautil.ErrTypGenLexer)
 		}
 	}
-	
+
 	lex.lexeme = lex.lexeme[0:0]
 }
 
@@ -411,8 +411,10 @@ func (lex *lexer) checkLook(tokenTypes ...int) bool {
 
 // return true if the current char matches one of the chars in the string.
 func (lex *lexer) match(chars string) bool {
-	if lex.eof {return false}
-	
+	if lex.eof {
+		return false
+	}
+
 	for _, char := range chars {
 		if lex.char == char {
 			return true
@@ -423,8 +425,10 @@ func (lex *lexer) match(chars string) bool {
 
 // return true if the next char matches one of the chars in the string.
 func (lex *lexer) nmatch(chars string) bool {
-	if lex.neof {return false}
-	
+	if lex.neof {
+		return false
+	}
+
 	for _, char := range chars {
 		if lex.nchar == char {
 			return true
@@ -434,8 +438,10 @@ func (lex *lexer) nmatch(chars string) bool {
 }
 
 func (lex *lexer) matchAlpha() bool {
-	if lex.eof {return false}
-	
+	if lex.eof {
+		return false
+	}
+
 	// The way standard Lua does it:
 	//return lex.char >= `a` && lex.char <= `z` || lex.char >= `A` && lex.char <= `Z` || lex.char == '_'
 	// But why waste my unicode lexer? If you want to give your variables names in chinese you should be able to.
@@ -443,7 +449,9 @@ func (lex *lexer) matchAlpha() bool {
 }
 
 func (lex *lexer) matchNumeric() bool {
-	if lex.eof {return false}
+	if lex.eof {
+		return false
+	}
 	// It would be WAY too complicated to support non-arabic numerals.
 	return lex.char >= '0' && lex.char <= '9'
 }
@@ -451,15 +459,17 @@ func (lex *lexer) matchNumeric() bool {
 // Fetch the next char (actually a Unicode code point).
 // I don't like the way EOF is handled, but there is really no better way that is flexible enough.
 func (lex *lexer) nextchar() {
-	if lex.eof {return}
+	if lex.eof {
+		return
+	}
 	if lex.neof {
 		lex.eof = true
 		return
 	}
-	
+
 	var err error
 	prevNL := '\000'
-	
+
 	lex.char = lex.nchar
 	lex.line = lex.nline
 
@@ -478,12 +488,12 @@ again:
 		lex.neof = true
 		return
 	}
-	
+
 	// Shortcut all the following nonsense for the common case
 	if lex.nchar != '\n' && lex.nchar != '\r' && prevNL == '\000' {
 		return
 	}
-	
+
 	// If the last char we read before this one was a newline and this char is a different
 	// kind of new line than that one, then collapse the two to one.
 	if (prevNL == '\n' && lex.nchar == '\r') || (prevNL == '\r' && lex.nchar == '\n') {
@@ -492,13 +502,13 @@ again:
 		lex.nline++
 		return
 	}
-	
+
 	// If we find a newline then try to find it's companion (if it has one).
 	if (lex.nchar == '\n' || lex.nchar == '\r') && prevNL == '\000' {
 		prevNL = lex.nchar
 		goto again
 	}
-	
+
 	// If we found a newline before but the next char was not a newline then unread the next char and go on.
 	if prevNL == '\n' || prevNL == '\r' {
 		lex.nchar = '\n'
@@ -506,7 +516,7 @@ again:
 		lex.source.UnreadRune()
 		return
 	}
-	
+
 	panic("UNREACHABLE?")
 }
 
@@ -527,64 +537,86 @@ func (lex *lexer) eatWS() {
 		if lex.match("-") && lex.nmatch("-") {
 			lex.nextchar()
 			lex.nextchar()
-			if lex.eof {return}
-			
+			if lex.eof {
+				return
+			}
+
 			// Is long comment?
 			if lex.match("[") && lex.nmatch("[=") {
 				i := 0
 				lex.nextchar()
-				if lex.eof {return}
+				if lex.eof {
+					return
+				}
 				for lex.match("=") {
 					i++
 					lex.nextchar()
-					if lex.eof {return}
+					if lex.eof {
+						return
+					}
 				}
 				lex.nextchar()
-				if lex.eof {return}
-				
-				nextcchar:
+				if lex.eof {
+					return
+				}
+
+			nextcchar:
 				for {
 					if lex.match("]") && lex.nmatch("=]") {
 						// Make sure the closing long bracket is the same level as the opener
 						lex.nextchar()
-						if lex.eof {return}
-						
+						if lex.eof {
+							return
+						}
+
 						if i > 0 {
 							for k := 0; k < i; k++ {
 								if !lex.match("=") {
 									continue nextcchar
 								}
 								lex.nextchar()
-								if lex.eof {return}
+								if lex.eof {
+									return
+								}
 							}
 						}
-						
+
 						if !lex.match("]") {
 							continue
 						}
 						lex.nextchar()
-						if lex.eof {return}
+						if lex.eof {
+							return
+						}
 						break
 					}
 					lex.nextchar()
-					if lex.eof {return}
+					if lex.eof {
+						return
+					}
 				}
 				continue
 			}
-			
+
 			for {
 				if lex.match("\n") {
 					lex.nextchar()
-					if lex.eof {return}
+					if lex.eof {
+						return
+					}
 					break
 				}
 				lex.nextchar()
-				if lex.eof {return}
+				if lex.eof {
+					return
+				}
 			}
 		}
 		if lex.match("\n\r \t") {
 			lex.nextchar()
-			if lex.eof {return}
+			if lex.eof {
+				return
+			}
 			continue
 		}
 		if lex.match("-") && lex.nmatch("-") {
@@ -604,13 +636,13 @@ func (lex *lexer) matchNumber() {
 		lex.nextchar()
 		lex.addLexeme()
 		lex.nextchar()
-		
+
 		// We need at least one digit.
 		if lex.eof || !(lex.matchNumeric() || lex.match(".") || lex.match("abcdefABCDEF")) {
 			luautil.Raise("Unexpected end of hexadecimal numeric literal", luautil.ErrTypGenLexer)
 		}
 	}
-	
+
 	for !lex.eof {
 		if lex.match(".") {
 			lex.addLexeme()
@@ -631,10 +663,10 @@ func (lex *lexer) matchNumber() {
 			lex.nextchar()
 			continue
 		}
-		
+
 		break
 	}
-	
+
 	n := string(lex.lexeme)
 	valid, iok, _, _ := luautil.ConvNumber(n, true, true)
 	if !valid {
@@ -669,21 +701,22 @@ func (lex *lexer) matchString(delim rune) {
 		lex.nextchar()
 		return
 	}
-	
+
 	for lex.char != delim {
 		if lex.eof {
 			luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
 		}
-		
+
 		// Handle escapes
 		if lex.char == '\\' {
 			lex.nextchar()
 			if lex.eof {
 				luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
 			}
-			
+
 			switch lex.char {
-			case '\n': fallthrough
+			case '\n':
+				fallthrough
 			case 'n':
 				lex.lexeme = append(lex.lexeme, '\n')
 			case 'r':
@@ -731,7 +764,7 @@ func (lex *lexer) matchString(delim rune) {
 				if lex.char != '{' {
 					luautil.Raise("Missing open bracket in unicode escape", luautil.ErrTypGenLexer)
 				}
-				
+
 				r := '\000'
 				for i := 0; ; i++ {
 					lex.nextchar()
@@ -741,7 +774,7 @@ func (lex *lexer) matchString(delim rune) {
 					if lex.char == '}' {
 						break
 					}
-					
+
 					r = (r << 4) + hexval(lex.char)
 				}
 				if r > 0x10FFFF {
@@ -752,8 +785,8 @@ func (lex *lexer) matchString(delim rune) {
 				if lex.matchNumeric() {
 					r := '\000'
 					for i := 0; i < 3 && lex.matchNumeric(); i++ {
-						r = 10 * r + lex.char - '0'
-						
+						r = 10*r + lex.char - '0'
+
 						lex.nextchar()
 						if lex.eof {
 							luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
@@ -766,11 +799,11 @@ func (lex *lexer) matchString(delim rune) {
 				}
 				luautil.Raise("Invalid escape sequence while reading a string", luautil.ErrTypGenLexer)
 			}
-			
+
 			lex.nextchar()
 			continue
 		}
-		
+
 		lex.addLexeme()
 		lex.nextchar()
 	}
@@ -795,73 +828,73 @@ func tokenTypeToString(typ int) string {
 	if typ < 0 || typ > tknString {
 		return "<INVALID|EOS>"
 	}
-	
+
 	return [...]string{
-	// Keywords
-	"and",
-	"or",
-	"not",
-	"while",
-	"for",
-	"repeat",
-	"until",
-	"in",
-	"do",
-	"break",
-	"end",
-	"if",
-	"then",
-	"else",
-	"elseif",
-	"function",
-	"goto",
-	"local",
-	"return",
-	"true",
-	"false",
-	"nil",
-	"continue",
-	
-	// Operators
-	"+",
-	"-",
-	"*",
-	"/",
-	"//",
-	"%",
-	"^",
-	"#",
-	"=",
-	"==",
-	">",
-	">=",
-	"<",
-	"<=",
-	"~=",
-	"<<",
-	">>",
-	"~",
-	"|",
-	"&",
-	":",
-	"::",
-	".",
-	"..",
-	"...",
-	",",
-	";",
-	"[",
-	"]",
-	"{",
-	"}",
-	"(",
-	")",
-	
-	// Values
-	"<integer>",
-	"<float>",
-	"<identifier>",
-	"<string>",
+		// Keywords
+		"and",
+		"or",
+		"not",
+		"while",
+		"for",
+		"repeat",
+		"until",
+		"in",
+		"do",
+		"break",
+		"end",
+		"if",
+		"then",
+		"else",
+		"elseif",
+		"function",
+		"goto",
+		"local",
+		"return",
+		"true",
+		"false",
+		"nil",
+		"continue",
+
+		// Operators
+		"+",
+		"-",
+		"*",
+		"/",
+		"//",
+		"%",
+		"^",
+		"#",
+		"=",
+		"==",
+		">",
+		">=",
+		"<",
+		"<=",
+		"~=",
+		"<<",
+		">>",
+		"~",
+		"|",
+		"&",
+		":",
+		"::",
+		".",
+		"..",
+		"...",
+		",",
+		";",
+		"[",
+		"]",
+		"{",
+		"}",
+		"(",
+		")",
+
+		// Values
+		"<integer>",
+		"<float>",
+		"<identifier>",
+		"<string>",
 	}[typ]
 }
 
@@ -907,6 +940,5 @@ func exitOnTokenExpected(token *token, expected ...int) {
 			found += " (Lexeme: " + token.Lexeme[:17] + "...)"
 		}
 	}
-	luautil.Raise("Invalid token: Found: " + found + " Expected: " + expectedString, luautil.ErrTypGenSyntax)
+	luautil.Raise("Invalid token: Found: "+found+" Expected: "+expectedString, luautil.ErrTypGenSyntax)
 }
-

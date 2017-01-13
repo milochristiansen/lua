@@ -45,7 +45,7 @@ func resolveVar(v string, state *compState) (int, int) {
 
 func resolveVarHelper(v string, state *compState) (int, bool) {
 	// Try to find an in-scope local first
-	for i := len(state.f.localVars)-1; i >= 0; i-- {
+	for i := len(state.f.localVars) - 1; i >= 0; i-- {
 		l := state.f.localVars[i]
 		if l.sPC > l.ePC && l.name == v {
 			return state.locals[i], true
@@ -57,7 +57,7 @@ func resolveVarHelper(v string, state *compState) (int, bool) {
 			return i, false
 		}
 	}
-	
+
 	if state.p != nil {
 		idx, local := resolveVarHelper(v, state.p)
 		if idx == -1 {
@@ -66,8 +66,8 @@ func resolveVarHelper(v string, state *compState) (int, bool) {
 		nidx := len(state.f.upVals)
 		state.f.upVals = append(state.f.upVals, upDef{
 			isLocal: local,
-			name: v,
-			index: idx,
+			name:    v,
+			index:   idx,
 		})
 		return nidx, false
 	}
@@ -77,11 +77,11 @@ func resolveVarHelper(v string, state *compState) (int, bool) {
 type identData struct {
 	isUp    bool // If true item is stored in an upval, else a register
 	isTable bool // if true the item is a table and keyRK is valid
-	
+
 	state *compState
 	reg   int
 	line  int
-	
+
 	itemIdx int // The register or upvalue index where the item resides
 	keyRK   int // The RK of the table index if needed (isTable is true)
 }
@@ -142,12 +142,12 @@ func (data identData) Get(dest int, tryInPlace bool) (bool, int) {
 // This assumes values above reg will be available as a place to store expression results.
 func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 	data := &identData{
-		state: state,
-		reg: reg,
-		line: n.Line(),
+		state:   state,
+		reg:     reg,
+		line:    n.Line(),
 		itemIdx: reg, // <- possibly not the final value!
 	}
-	
+
 	switch nn := n.(type) {
 	case *ast.TableAccessor:
 		data.isTable = true
@@ -174,7 +174,11 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 				data.itemIdx = idx
 				data.isUp = true
 			}
-			regs, keyReg := 2, reg+1; if idx != reg { keyReg = reg; regs = 1 }
+			regs, keyReg := 2, reg+1
+			if idx != reg {
+				keyReg = reg
+				regs = 1
+			}
 			data.keyRK, _ = expr(nn.Key, state, keyReg, false).RK()
 			return *data, regs
 		case *ast.Parens:
@@ -264,10 +268,10 @@ func compileCall(call *ast.FuncCall, state *compState, reg, rets int, tail bool)
 	} else {
 		expr(call.Function, state, f, false).To(false)
 	}
-	
+
 	for i, e := range call.Args {
 		exres := expr(e, state, reg, false)
-		if i == len(call.Args) - 1 && exres.mayMulti {
+		if i == len(call.Args)-1 && exres.mayMulti {
 			exres.setResults(-1)
 			params = -2
 		}
@@ -275,7 +279,7 @@ func compileCall(call *ast.FuncCall, state *compState, reg, rets int, tail bool)
 		reg++
 		params++
 	}
-	
+
 	if tail {
 		state.addInst(createABC(opTailCall, f, params+1, 0), call.Line())
 		return
@@ -289,24 +293,24 @@ type exprData struct {
 	boolean  patchList
 	boolRev  bool // If true jump on true instead of false.
 	boolCanR bool // If true this boolean expression also sets reg (the value in reg may not be boolean)
-	
+
 	// If true the expression resulted in a value placed in the provided register
 	register bool
-	
+
 	// If the expression did not result in a register value and it was not a boolean
 	// expression this will be set to a constant index that holds the state.f.
 	// I really should use LOADBOOL and LOADNIL where possible, but this way is simpler.
 	// TODO: Issue LOADKX instructions where needed!
 	constant int
-	
+
 	// True if expression is a single function call or VARARG.
-	mayMulti bool
+	mayMulti   bool
 	patchMulti int // MUST be a CALL or VARARG
-	
-	state  *compState
-	oreg   int
-	reg    int
-	line   int
+
+	state *compState
+	oreg  int
+	reg   int
+	line  int
 }
 
 // -1 for unlimited.
@@ -322,9 +326,9 @@ func (e exprData) setResults(c int) {
 		return
 	}
 	if state.f.code[e.patchMulti].getOpCode() == opCall {
-		state.f.code[e.patchMulti].setC(c+1)
+		state.f.code[e.patchMulti].setC(c + 1)
 	} else {
-		state.f.code[e.patchMulti].setB(c+1)
+		state.f.code[e.patchMulti].setB(c + 1)
 	}
 }
 
@@ -340,7 +344,7 @@ func (e exprData) To(tryInPlace bool) (int, bool) {
 			state.addInst(createABC(opMove, e.oreg, e.reg, 0), e.line)
 			return e.oreg, true
 		}
-		return e.reg, true 
+		return e.reg, true
 	case e.boolCanR:
 		e.boolean.patch(state.f, len(state.f.code))
 		return e.reg, true
@@ -433,13 +437,13 @@ func (e exprData) BoolReg() (patchList, bool, bool) {
 // boolRev reverses the sense of boolean operators (true jumps and false falls through).
 func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 	rtn := exprData{
-		state: state,
+		state:   state,
 		boolRev: boolRev,
-		reg: reg,
-		oreg: reg,
-		line: e.Line(),
+		reg:     reg,
+		oreg:    reg,
+		line:    e.Line(),
 	}
-	
+
 	switch ee := e.(type) {
 	case *ast.Operator:
 		// Operator precedence is already handled by the AST, Yay!
@@ -448,20 +452,23 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 		case ast.OpAdd, ast.OpSub, ast.OpMul, ast.OpMod, ast.OpPow, ast.OpDiv, ast.OpIDiv, ast.OpBinAND, ast.OpBinOR, ast.OpBinXOR, ast.OpBinShiftL, ast.OpBinShiftR:
 			// TODO: Constant folding
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
-			state.addInst(createABC(opCode(ee.Op) + OpAdd, reg, l, r), ee.Line())
+			state.addInst(createABC(opCode(ee.Op)+OpAdd, reg, l, r), ee.Line())
 			rtn.register = true
-		
+
 		// Simple unary operators
 		case ast.OpUMinus, ast.OpBinNot, ast.OpNot, ast.OpLength:
 			// TODO: Constant folding for OpUMinus and OpBinNot
 			v, _ := expr(ee.Right, state, reg, false).RK()
-			state.addInst(createABC(opCode(ee.Op) + OpAdd, reg, v, 0), ee.Line())
+			state.addInst(createABC(opCode(ee.Op)+OpAdd, reg, v, 0), ee.Line())
 			rtn.register = true
-		
+
 		// Complex binary operators
-		
+
 		case ast.OpConcat:
 			// Combine multiple adjacent concat operators into one operation.
 			// This is important to string concatenation performance.
@@ -475,64 +482,100 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 				een, ok = en.(*ast.Operator)
 			}
 			expr(en, state, last, false).To(false)
-			
+
 			state.addInst(createABC(opConcat, reg, reg, last), ee.Line())
 			rtn.register = true
-		
+
 		// Simple Logical operators
-		
+
 		case ast.OpEqual:
-			sense := 0; if boolRev { sense = 1 }
+			sense := 0
+			if boolRev {
+				sense = 1
+			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
 			state.addInst(createABC(OpEqual, sense, l, r), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpNotEqual:
-			sense := 1; if boolRev { sense = 0 }
+			sense := 1
+			if boolRev {
+				sense = 0
+			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
 			state.addInst(createABC(OpEqual, sense, l, r), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpLessThan:
-			sense := 0; if boolRev { sense = 1 }
+			sense := 0
+			if boolRev {
+				sense = 1
+			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
 			state.addInst(createABC(OpLessThan, sense, l, r), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpLessOrEqual:
-			sense := 0; if boolRev { sense = 1 }
+			sense := 0
+			if boolRev {
+				sense = 1
+			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
 			state.addInst(createABC(OpLessOrEqual, sense, l, r), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpGreaterThan:
-			sense := 1; if boolRev { sense = 0 }
+			sense := 1
+			if boolRev {
+				sense = 0
+			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
 			state.addInst(createABC(OpLessOrEqual, sense, l, r), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpGreaterOrEqual:
-			sense := 1; if boolRev { sense = 0 }
+			sense := 1
+			if boolRev {
+				sense = 0
+			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
-			r := reg; if lu { r++ }
+			r := reg
+			if lu {
+				r++
+			}
 			r, _ = expr(ee.Right, state, r, false).RK()
 			state.addInst(createABC(OpLessThan, sense, l, r), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
-		
+
 		// The pain in the a** operators
 		// TODO: The code generated here is *terrible*.
-		
+
 		case ast.OpAnd:
 			//	Get the left value into a register (any register)
 			//	if left == reg
@@ -553,7 +596,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			//		<end>
 			//	else
 			//		make all "JMP <end>" sequences above into "JMP <target>"
-			
+
 			rtn.boolCanR = true
 			patch := patchList([]int{})
 			lr, lru := expr(ee.Left, state, reg, false).To(true)
@@ -587,7 +630,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 		case ast.OpOr:
 			// TESTSET dest src sense ; if bool(src) == sense { sest = src } else { pc++ }
 			// TEST val _ sense ; if bool(val) == sense { } else { pc++ }
-			
+
 			//	Get the left value into a register (any register)
 			//	if left == reg
 			//		TEST reg _ 1
@@ -607,7 +650,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			//	else
 			//		JMP <target>
 			//		<end>
-			
+
 			rtn.boolCanR = true
 			patch := patchList([]int{})
 			lr, lru := expr(ee.Left, state, reg, false).To(true)
@@ -642,7 +685,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 	case *ast.FuncCall:
 		compileCall(ee, state, reg, 1, false)
 		rtn.mayMulti = true
-		rtn.patchMulti = len(state.f.code)-1
+		rtn.patchMulti = len(state.f.code) - 1
 		rtn.register = true
 	case *ast.FuncDecl:
 		f := compile(ee, state)
@@ -663,9 +706,9 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			keys = append(keys, k)
 			keyed = append(keyed, ee.Vals[i])
 		}
-		
+
 		state.addInst(createABC(opNewTable, reg, int(float8FromInt(len(list))), int(float8FromInt(len(keys)))), ee.Line())
-		
+
 		ic := 0
 		fc := 1
 		for i, item := range list {
@@ -675,7 +718,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 				fc++
 			}
 			ex := expr(item, state, reg+ic+1, false)
-			if i == len(list) - 1 && ex.mayMulti {
+			if i == len(list)-1 && ex.mayMulti {
 				ex.setResults(-1)
 				state.addInst(createABC(opSetList, reg, 0, fc), ee.Line())
 				ic = -1
@@ -686,7 +729,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 		if ic != 0 {
 			state.addInst(createABC(opSetList, reg, ic, fc), ee.Line())
 		}
-		
+
 		for i, item := range keyed {
 			vrk, _ := expr(item, state, reg+1, false).RK()
 			krk, _ := expr(keys[i], state, reg+2, false).RK()
@@ -755,6 +798,6 @@ func exprlist(es []ast.Expr, state *compState, firstreg, minresults int) {
 		last.To(false)
 	}
 	if minresults > 0 {
-		last.setResults(minresults+1)
+		last.setResults(minresults + 1)
 	}
 }

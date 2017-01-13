@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -49,7 +49,7 @@ func (d dumper) writeString(s string) {
 		d.writeByte(0)
 		return
 	}
-	
+
 	l++ // Plus one for the non-existent zero terminator
 	if l >= 0xff {
 		d.writeByte(0xff)
@@ -57,19 +57,19 @@ func (d dumper) writeString(s string) {
 	} else {
 		d.writeByte(byte(l))
 	}
-	
+
 	d.write([]byte(s))
 }
 
 func (d dumper) writeCode(fp *funcProto) {
 	d.writeInt(int32(len(fp.code)))
-	
+
 	d.write(fp.code)
 }
 
 func (d dumper) writeConstants(fp *funcProto) {
 	d.writeInt(int32(len(fp.constants)))
-	
+
 	for _, v := range fp.constants {
 		switch v2 := v.(type) {
 		case nil:
@@ -86,7 +86,7 @@ func (d dumper) writeConstants(fp *funcProto) {
 		case float64:
 			d.writeByte(3 | (0 << 4)) // LUA_TNUMFLT
 			d.write(v2)
-		
+
 		case int64:
 			d.writeByte(3 | (1 << 4)) // LUA_TNUMINT
 			d.write(v2)
@@ -98,7 +98,7 @@ func (d dumper) writeConstants(fp *funcProto) {
 				d.writeByte(4 | (0 << 4)) // LUA_TSHRSTR
 			}
 			d.writeString(v2)
-		
+
 		default:
 			luautil.Raise("Bin Dumper: Invalid constant type", luautil.ErrTypBinDumper)
 		}
@@ -107,7 +107,7 @@ func (d dumper) writeConstants(fp *funcProto) {
 
 func (d dumper) writeUpValues(fp *funcProto) {
 	d.writeInt(int32(len(fp.upVals)))
-	
+
 	for _, v := range fp.upVals {
 		if v.isLocal {
 			d.writeByte(1)
@@ -142,7 +142,7 @@ func (d dumper) writeDebug(fp *funcProto) {
 	}
 
 	d.writeInt(int32(len(fp.upVals)))
-	
+
 	for _, v := range fp.upVals {
 		d.writeString(v.name)
 	}
@@ -154,7 +154,7 @@ func (d dumper) writeFunction(psrc string, fp *funcProto) {
 	} else {
 		d.writeString(fp.source)
 	}
-	
+
 	d.writeInt(int32(fp.lineDefined))
 	d.writeInt(int32(fp.lastLineDefined))
 	d.writeByte(byte(fp.parameterCount))
@@ -171,10 +171,10 @@ func (d dumper) writeFunction(psrc string, fp *funcProto) {
 func dumpBin(fp *funcProto) []byte {
 	out := new(bytes.Buffer)
 	d := dumper{out}
-	
+
 	d.write([]byte(binHeader64))
 	d.writeByte(byte(len(fp.upVals)))
 	d.writeFunction("", fp)
-	
+
 	return out.Bytes()
 }

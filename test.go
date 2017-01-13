@@ -7,14 +7,13 @@ package main
 import (
 	"github.com/milochristiansen/lua"
 	"github.com/milochristiansen/lua/lmodbase"
+	"github.com/milochristiansen/lua/lmodmath"
 	"github.com/milochristiansen/lua/lmodpackage"
 	"github.com/milochristiansen/lua/lmodstring"
 	"github.com/milochristiansen/lua/lmodtable"
-	"github.com/milochristiansen/lua/lmodmath"
-	
-	"strings"
+
 	"fmt"
-	
+	"strings"
 	//"runtime/trace"
 	//"os"
 )
@@ -24,26 +23,26 @@ func main() {
 	// but the HTML UI does not seem to work.
 	//file, _ := os.Create("./test.trace")
 	//trace.Start(file)
-	
+
 	l := lua.NewState()
-	
+
 	l.NativeTrace = true
-	
+
 	l.Push(lmodbase.Open)
 	l.Call(0, 0)
-	
+
 	l.Push(lmodpackage.Open)
 	l.Call(0, 0)
-	
+
 	l.Push(lmodstring.Open)
 	l.Call(0, 0)
-	
+
 	l.Push(lmodtable.Open)
 	l.Call(0, 0)
-	
+
 	l.Push(lmodmath.Open)
 	l.Call(0, 0)
-	
+
 	// I try not to delete old code here, I just comment it out in case I need it later.
 	// Probably not the best idea, but it is interesting to come back and see the things
 	// I had so much... fun. (or not) debugging...
@@ -360,25 +359,25 @@ func main() {
 	--assert(i == 11 and a[1]() == 1 and a[3]() == 3 and i == 4)
 	
 	`
-	
+
 	run := true
 	luac := true
-	
+
 	//luac = false
-	
+
 	var err error
-	
+
 	if luac {
 		l.Println("luac:")
 		err = l.LoadTextExternal(strings.NewReader(script), "test.go", 0)
 		if err != nil {
-		
+
 			fmt.Println(err)
 			return
 		}
-		
+
 		l.ListFunc(-1)
-		
+
 		if run {
 			l.Println("\nRun luac:")
 			err = l.PCall(0, 0)
@@ -390,16 +389,16 @@ func main() {
 			l.Pop(1)
 		}
 	}
-	
+
 	l.Println("\ngithub.com/milochristiansen/lua:")
 	err = l.LoadText(strings.NewReader(script), "test.go", 0)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	
+
 	l.ListFunc(-1)
-	
+
 	if run {
 		l.Println("\nRun github.com/milochristiansen/lua:")
 		err = l.PCall(0, 0)

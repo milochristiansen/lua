@@ -1,5 +1,5 @@
 /*
-Copyright 2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -37,7 +37,7 @@ func mkoffset(from, to int) int {
 type compState struct {
 	p *compState
 	f *funcProto
-	
+
 	nextReg   int
 	breaks    []patchList
 	continues []patchList
@@ -52,7 +52,7 @@ func (p localPatchList) patch(f *funcProto, soff int) {
 	for _, l := range p {
 		f.localVars[l].sPC = int32(len(f.code) + soff)
 	}
-} 
+}
 
 // This is to help me remember to add line info for each instruction...
 func (state *compState) addInst(inst instruction, line int) {
@@ -65,8 +65,8 @@ func (state *compState) mklocal(name string, soff int) {
 	state.nextReg++
 	state.f.localVars = append(state.f.localVars, localVar{
 		name: name,
-		sPC: int32(len(state.f.code) + soff),
-		ePC: int32(sliceutil.Top(&state.blocks).(*blockStuff).bpc), 
+		sPC:  int32(len(state.f.code) + soff),
+		ePC:  int32(sliceutil.Top(&state.blocks).(*blockStuff).bpc),
 	})
 }
 
@@ -76,8 +76,8 @@ func (state *compState) mklocaladv(name string, p localPatchList) localPatchList
 	l := len(state.f.localVars)
 	state.f.localVars = append(state.f.localVars, localVar{
 		name: name,
-		sPC: -500, // magic, no special significance except it isn't any of the other magic values and is lower than any valid value
-		ePC: int32(sliceutil.Top(&state.blocks).(*blockStuff).bpc), 
+		sPC:  -500, // magic, no special significance except it isn't any of the other magic values and is lower than any valid value
+		ePC:  int32(sliceutil.Top(&state.blocks).(*blockStuff).bpc),
 	})
 	return append(p, l)
 }
@@ -112,16 +112,16 @@ func (from jumpDat) patch(f *funcProto, to jumpDat) {
 	if from.regs < to.regs {
 		luautil.Raise(fmt.Sprintf("Unconditional jump on line %v (to line %v) into the scope of one or more local variables", from.line, to.line), luautil.ErrTypGenSyntax) // TODO: Better errors
 	}
-	
+
 	f.code[from.pc].setSBx(mkoffset(from.pc, to.pc))
 }
 
 type blockStuff struct {
 	bpc int
-	
+
 	labels []jumpDat
 	gotos  map[string][]jumpDat
-	
+
 	hasUp bool // One or more locals in this block are used as upvalues
 }
 
@@ -132,7 +132,7 @@ func (p patchList) patch(f *funcProto, pc int) {
 	for _, ipc := range p {
 		f.code[ipc].setSBx(mkoffset(ipc, pc)) // -1 to correct for the automatic +1 to the PC after each instruction.
 	}
-} 
+}
 
 // Patch the A field of the JMPs to close values at "reg" and above in addition to the normal PC patching.
 func (p patchList) loop(f *funcProto, pc, reg int) {
@@ -140,11 +140,11 @@ func (p patchList) loop(f *funcProto, pc, reg int) {
 		f.code[ipc].setA(reg)
 		f.code[ipc].setSBx(mkoffset(ipc, pc))
 	}
-} 
+}
 
 func compSource(source, name string, line int) (f *funcProto, err error) {
 	// Quick-and-dirty error trapping.
-	defer func(){
+	defer func() {
 		if x := recover(); x != nil {
 			switch e := x.(type) {
 			case luautil.Error:
@@ -157,7 +157,7 @@ func compSource(source, name string, line int) (f *funcProto, err error) {
 		}
 	}()
 	//_ = fmt.Print
-	
+
 	block, err := ast.Parse(source, line)
 	if err != nil {
 		return nil, err
@@ -176,33 +176,33 @@ func compile(f *ast.FuncDecl, parent *compState) *funcProto {
 			upVals: []upDef{
 				{
 					index: 0,
-					name: "_ENV",
+					name:  "_ENV",
 				},
 			},
-			lineDefined: f.Line(),
+			lineDefined:    f.Line(),
 			parameterCount: len(f.Params),
 		},
 		p: parent,
 	}
-	
+
 	if f.IsVariadic {
 		state.f.isVarArg = 2 // Set to 1 if the function actually uses "..."
 	}
-	
+
 	for _, param := range f.Params {
 		state.locals = append(state.locals, state.nextReg)
 		state.nextReg++
 		state.f.localVars = append(state.f.localVars, localVar{
 			name: param,
-			sPC: 0,
-			ePC: -10, // Filled in with pc+2 later
+			sPC:  0,
+			ePC:  -10, // Filled in with pc+2 later
 		})
 	}
-	
+
 	block(f.Block, state)
-	
+
 	state.addInst(createABC(opReturn, 0, 1, 0), -1)
-	
+
 	for i := range state.f.localVars {
 		if state.f.localVars[i].ePC == -10 {
 			state.f.localVars[i].ePC = int32(len(state.f.code))
@@ -222,14 +222,14 @@ func prepBlock(state *compState) {
 	// end value.
 	// Locals that are in scope are guaranteed to have a sPC that is greater than
 	// their ePC.
-	sliceutil.Push(&state.blocks, &blockStuff{bpc: len(state.f.code)-1, gotos: map[string][]jumpDat{}})
+	sliceutil.Push(&state.blocks, &blockStuff{bpc: len(state.f.code) - 1, gotos: map[string][]jumpDat{}})
 }
 
 func preppedBlock(block []ast.Stmt, state *compState, epilogue int) {
 	for _, n := range block {
 		statement(n, state)
 	}
-	
+
 	closeBlock(block, state, epilogue, 0)
 }
 
@@ -239,14 +239,14 @@ func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 	locals := 0
 	for i, l := range state.f.localVars {
 		if l.sPC > l.ePC && l.ePC == int32(stuff.bpc) {
-			state.f.localVars[i].ePC = int32(len(state.f.code)+epilogue)
+			state.f.localVars[i].ePC = int32(len(state.f.code) + epilogue)
 			locals++
 		}
 	}
-	
+
 	// Adjust for locals going out of scope.
 	state.nextReg -= locals
-	
+
 	// Issue a dummy JMP to close any upvalues if needed.
 	// What ever happened to the CLOSE instruction? Using JMP seems weird.
 	if len(state.blocks) != 0 && stuff.hasUp {
@@ -254,7 +254,7 @@ func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 	} else if off != 0 {
 		state.addInst(createAsBx(opJump, 0, off), block[len(block)-1].Line())
 	}
-	
+
 	// Resolve this block's labels
 	for _, l := range stuff.labels {
 		if ts, ok := stuff.gotos[l.label]; ok {
@@ -264,7 +264,7 @@ func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 			delete(stuff.gotos, l.label)
 		}
 	}
-	
+
 	// If this is a top-level block make sure there are no unresolved gotos
 	if len(state.blocks) == 0 {
 		if len(stuff.gotos) == 1 {
@@ -277,10 +277,10 @@ func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 		if len(stuff.gotos) > 1 {
 			luautil.Raise(fmt.Sprintf("Multiple gotos with undefined labels."), luautil.ErrTypGenSyntax)
 		}
-		
+
 		return
 	}
-	
+
 	// Promote any unresolved gotos in this block to the next block up
 	pstuff := sliceutil.Top(&state.blocks).(*blockStuff)
 	for t, ts := range stuff.gotos {
@@ -297,7 +297,7 @@ func statement(n ast.Stmt, state *compState) {
 			} else {
 				exprlist(nn.Values, state, state.nextReg, len(nn.Targets))
 			}
-			
+
 			// Don't actually create the locals until they are all set, that way they are not available
 			// inside their own initialization expressions.
 			for _, e := range nn.Targets {
@@ -306,7 +306,7 @@ func statement(n ast.Stmt, state *compState) {
 				if !ok {
 					luautil.Raise(fmt.Sprintf("Invalid local declaration on line %v", e.Line()), luautil.ErrTypGenSyntax) // TODO: Better errors
 				}
-				
+
 				// For some bizarre reason it is not an error to redeclare a local variable.
 				// Since I already search the variable list in reverse order all I need to do
 				// is blindly declare the "new" variable.
@@ -328,23 +328,23 @@ func statement(n ast.Stmt, state *compState) {
 			expr(nn.Values[0], state, reg, false).To(false)
 			return
 		}
-		
+
 		// My solution to table clobbering (where a non-table set clobbers an "earlier" table set by overwriting the
 		// register holding the table) if fairly inefficient, but it works. (note that this problem also effects upvalues
 		// and register keys for tables)
-		
+
 		// Lower targets
-		
+
 		// No-clobber lists
 		tblat := make(map[int][]int)
 		upat := make(map[int][]int)
 		keyat := make(map[int][]int)
-		
+
 		tdata := make([]identData, len(nn.Targets))
 		nextTemp := state.nextReg
 		for c, target := range nn.Targets {
 			data, usedregs := lowerIdent(target, state, nextTemp)
-			
+
 			// Populate the non-clobber tables
 			if data.isTable && !data.isUp {
 				tblat[data.itemIdx] = append(tblat[data.itemIdx], c)
@@ -354,22 +354,22 @@ func statement(n ast.Stmt, state *compState) {
 			if data.isTable && !isK(data.keyRK) {
 				keyat[data.keyRK] = append(keyat[data.keyRK], c)
 			}
-			
+
 			nextTemp += usedregs // 0, 1, or 2 (2 will only come up if the last element is a table access with an expression key)
 			tdata[c] = data
 		}
-		
+
 		// Evaluate expressions
 		exprlist(nn.Values, state, nextTemp, len(nn.Targets))
-		
+
 		// Get the top index so we have a place to shift tables if we need to.
 		firstRes := nextTemp
 		nextTemp += len(nn.Targets)
-		
+
 		// Assign values
 		// Do the assignments in reverse order so that lower items do not clobber upper items
 		// (during expression execution for example)
-		for i := len(nn.Targets)-1; i >= 0; i-- {
+		for i := len(nn.Targets) - 1; i >= 0; i-- {
 			data := tdata[i]
 			// Test if we need to shift any tables/upvalues/keys.
 			if !data.isTable {
@@ -392,7 +392,7 @@ func statement(n ast.Stmt, state *compState) {
 						}
 						nextTemp++
 					}
-					
+
 					// Or registers holding table keys.
 					if ds, ok := keyat[data.itemIdx]; ok {
 						state.addInst(createABC(opMove, nextTemp, tdata[ds[0]].keyRK, 0), data.line)
@@ -403,10 +403,10 @@ func statement(n ast.Stmt, state *compState) {
 					}
 				}
 			}
-			
-			data.Set(firstRes+i)
+
+			data.Set(firstRes + i)
 		}
-		
+
 		// This version is *too* clever. `a, b = b, a` won't work due to mutual clobbering.
 		// Evaluate expressions
 		//results := []int{}
@@ -473,7 +473,9 @@ func statement(n ast.Stmt, state *compState) {
 	case *ast.WhileLoop:
 		begin := len(state.f.code)
 		list, k := expr(nn.Cond, state, state.nextReg, false).Bool()
-		if list == nil && !k { return }
+		if list == nil && !k {
+			return
+		}
 		sliceutil.Push(&state.breaks, patchList([]int{}))
 		sliceutil.Push(&state.continues, patchList([]int{}))
 		block(nn.Block, state)
@@ -487,7 +489,7 @@ func statement(n ast.Stmt, state *compState) {
 		begin := len(state.f.code)
 		sliceutil.Push(&state.breaks, patchList([]int{}))
 		sliceutil.Push(&state.continues, patchList([]int{}))
-		
+
 		// I hate repeat-until.
 		// I need to manually parse the block here, then jump through hoops to make sure the upvalues are not closed
 		// before the expression is parsed. It's nasty.
@@ -508,7 +510,7 @@ func statement(n ast.Stmt, state *compState) {
 			list.loop(state.f, begin, state.nextReg+1) // Set the false jump target to the loop beginning.
 		}
 		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
-		
+
 	case *ast.ForLoopNumeric:
 		prepBlock(state)
 		initReg, nreg := state.nextReg, state.nextReg
@@ -516,8 +518,10 @@ func statement(n ast.Stmt, state *compState) {
 		pl = state.mklocaladv("(for limit)", pl)
 		pl = state.mklocaladv("(for step)", pl)
 		pl = state.mklocaladv(nn.Counter, pl)
-		expr(nn.Init, state, nreg, false).To(false); nreg++
-		expr(nn.Limit, state, nreg, false).To(false); nreg++
+		expr(nn.Init, state, nreg, false).To(false)
+		nreg++
+		expr(nn.Limit, state, nreg, false).To(false)
+		nreg++
 		expr(nn.Step, state, nreg, false).To(false)
 		pl.patch(state.f, 1)
 		prep := patchList([]int{len(state.f.code)})
@@ -570,27 +574,27 @@ func statement(n ast.Stmt, state *compState) {
 			state.addInst(createAsBx(opJump, 0, 0), nn.Line())
 			break
 		}
-		
+
 		stuff := sliceutil.Top(&state.blocks).(*blockStuff)
 		stuff.gotos[nn.Label] = append(stuff.gotos[nn.Label], jumpDat{
 			label: nn.Label,
-			pc: len(state.f.code),
-			regs: state.nextReg,
-			line: nn.Line(),
+			pc:    len(state.f.code),
+			regs:  state.nextReg,
+			line:  nn.Line(),
 		})
 		state.addInst(createAsBx(opJump, 0, 0), nn.Line())
 	case *ast.Label:
 		stuff := sliceutil.Top(&state.blocks).(*blockStuff)
 		stuff.labels = append(stuff.labels, jumpDat{
 			label: nn.Label,
-			pc: len(state.f.code),
-			regs: state.nextReg,
-			line: nn.Line(),
+			pc:    len(state.f.code),
+			regs:  state.nextReg,
+			line:  nn.Line(),
 		})
 	case *ast.Return:
 		nreg := state.nextReg
-		items := len(nn.Items)+1
-		
+		items := len(nn.Items) + 1
+
 		if len(nn.Items) == 1 {
 			if call, ok := nn.Items[0].(*ast.FuncCall); ok {
 				compileCall(call, state, nreg, -1, true)
@@ -598,17 +602,17 @@ func statement(n ast.Stmt, state *compState) {
 				return
 			}
 		}
-		
+
 		for i, e := range nn.Items {
 			ex := expr(e, state, nreg, false)
-			if i == len(nn.Items) - 1 && ex.mayMulti {
+			if i == len(nn.Items)-1 && ex.mayMulti {
 				ex.setResults(-1)
 				items = 0
 			}
 			ex.To(false)
 			nreg++
 		}
-		
+
 		state.addInst(createABC(opReturn, state.nextReg, items, 0), nn.Line())
 	case *ast.FuncCall:
 		compileCall(nn, state, state.nextReg, 0, false)

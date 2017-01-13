@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -31,7 +31,7 @@ func (l *State) call(fi, args, rtns int, tail bool) {
 	if fi < 0 {
 		fi = l.stack.TopIndex() + fi + 1
 	}
-	
+
 	v := l.stack.Get(fi)
 	f, ok := v.(*function)
 	if !ok {
@@ -41,22 +41,22 @@ func (l *State) call(fi, args, rtns int, tail bool) {
 			if !ok {
 				luautil.Raise("Meta method __call is not a function.", luautil.ErrTypGenRuntime)
 			}
-			
+
 			l.stack.Insert(fi, f)
-			
+
 			if tail {
-				l.stack.TailFrame(f, fi, args + 1)
+				l.stack.TailFrame(f, fi, args+1)
 				l.exec()
 				return
 			}
-			l.stack.AddFrame(f, fi, args + 1, rtns)
+			l.stack.AddFrame(f, fi, args+1, rtns)
 			l.exec()
 			l.stack.ReturnFrame()
 			return
 		}
 		luautil.Raise("Value is not a function and has no __call meta method.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	if tail {
 		l.stack.TailFrame(f, fi, args)
 		l.exec()
@@ -77,7 +77,7 @@ func (l *State) exec() {
 		i, ok := l.stack.cFrame().nxtOp()
 		for ok {
 			//l.Printf("[%v]\t%v\n", l.stack.cFrame().pc-1, i)
-			_ = "breakpoint" // Next Instruction
+			_ = "breakpoint"                           // Next Instruction
 			if instructionTable[i.getOpCode()](l, i) { // RETURN and TAILCALL return true
 				return
 			}
@@ -121,6 +121,7 @@ func rk(l *State, f int) value {
 }
 
 var instructionTable [opCodeCount]func(l *State, i instruction) bool
+
 func init() {
 	instructionTable = [opCodeCount]func(l *State, i instruction) bool{
 		// MOVE
@@ -143,20 +144,20 @@ func init() {
 			if i.c() != 0 {
 				l.stack.cFrame().pc++
 			}
-	
+
 			l.stack.Set(i.a(), i.b() != 0)
 			return false
 		},
 		// LOADNIL
 		func(l *State, i instruction) bool {
 			a, b := i.a(), i.b()
-			
-			for k := a; k <= a + b; k++ {
+
+			for k := a; k <= a+b; k++ {
 				l.stack.Set(k, nil)
 			}
 			return false
 		},
-	
+
 		// GETUPVAL
 		func(l *State, i instruction) bool {
 			l.stack.Set(i.a(), l.stack.cFrame().getUp(i.b()))
@@ -174,7 +175,7 @@ func init() {
 			l.stack.Set(i.a(), l.getTable(tbl, rk(l, i.c())))
 			return false
 		},
-	
+
 		// SETTABUP
 		func(l *State, i instruction) bool {
 			tbl := l.stack.cFrame().getUp(i.a())
@@ -192,7 +193,7 @@ func init() {
 			l.setTable(tbl, rk(l, i.b()), rk(l, i.c()))
 			return false
 		},
-	
+
 		// NEWTABLE
 		func(l *State, i instruction) bool {
 			var tbl *table
@@ -204,7 +205,7 @@ func init() {
 			l.stack.Set(i.a(), tbl)
 			return false
 		},
-	
+
 		// SELF
 		func(l *State, i instruction) bool {
 			a := i.a()
@@ -213,7 +214,7 @@ func init() {
 			l.stack.Set(a+1, tbl)
 			return false
 		},
-	
+
 		// ADD
 		opMath,
 		// SUB
@@ -258,12 +259,12 @@ func init() {
 		// LEN
 		func(l *State, i instruction) bool {
 			v := l.stack.Get(i.b())
-			
+
 			if s, ok := v.(string); ok {
 				l.stack.Set(i.a(), int64(len(s)))
 				return false
 			}
-			
+
 			meth := l.hasMetaMethod(v, "__len")
 			if meth != nil {
 				l.Push(meth)
@@ -274,7 +275,7 @@ func init() {
 				l.stack.Set(i.a(), rtn)
 				return false
 			}
-			
+
 			tbl, ok := v.(*table)
 			if !ok {
 				luautil.Raise("Value is not a string or table and has no __len meta method.", luautil.ErrTypGenRuntime)
@@ -282,11 +283,11 @@ func init() {
 			l.stack.Set(i.a(), int64(tbl.Length()))
 			return false
 		},
-	
+
 		// CONCAT
 		func(l *State, i instruction) bool {
 			b, c := i.b(), i.c()
-			
+
 			var buff *bytes.Buffer
 			concat := func(v1, v2 value) {
 				meth := l.hasMetaMethod(v1, "__concat")
@@ -298,7 +299,7 @@ func init() {
 						panic("UNREACHABLE")
 					}
 				}
-				
+
 				l.Push(meth)
 				l.Push(v1)
 				l.Push(v2)
@@ -307,7 +308,7 @@ func init() {
 				l.Pop(1)
 				buff = bytes.NewBufferString(toStringConcat(rtn))
 			}
-			
+
 			k := b
 			v := l.stack.Get(k)
 			if t := typeOf(v); t == TypString || t == TypNumber {
@@ -318,11 +319,11 @@ func init() {
 					luautil.Raise("CONCAT called with a range of less than 2 registers.", luautil.ErrTypMajorInternal)
 				}
 				v2 := l.stack.Get(k)
-					
+
 				concat(v, v2)
 			}
 			k++
-			
+
 			for ; k <= c; k++ {
 				v := l.stack.Get(k)
 				if t := typeOf(v); t == TypString || t == TypNumber {
@@ -334,15 +335,15 @@ func init() {
 			l.stack.Set(i.a(), buff.String())
 			return false
 		},
-	
+
 		// JMP
 		func(l *State, i instruction) bool {
 			a := i.a()
 			if a != 0 {
 				// Close all upvalues that refer to indexes at or above A-1
-				l.stack.cFrame().closeUp(a-1)
+				l.stack.cFrame().closeUp(a - 1)
 			}
-			
+
 			l.stack.cFrame().pc += int32(i.sbx())
 			return false
 		},
@@ -352,7 +353,7 @@ func init() {
 		opCmp,
 		// LE
 		opCmp,
-	
+
 		// TEST
 		func(l *State, i instruction) bool {
 			if toBool(l.stack.Get(i.a())) == (i.c() == 0) {
@@ -372,11 +373,11 @@ func init() {
 			}
 			return false
 		},
-	
+
 		// CALL
 		func(l *State, i instruction) bool {
 			a, b, c := i.a(), i.b(), i.c()
-			
+
 			args := 0
 			switch b {
 			case 0:
@@ -384,19 +385,19 @@ func init() {
 			default:
 				args = b - 1
 			}
-			
+
 			// Value of -1 means "set later" (either by RETURN or the return value of a native function).
 			rtns := c - 1
-			
+
 			l.call(a, args, rtns, false)
 			return false
 		},
 		// TAILCALL
 		func(l *State, i instruction) bool {
 			l.stack.cFrame().closeUpAll()
-			
+
 			a, b := i.a(), i.b()
-			
+
 			args := 0
 			switch b {
 			case 0:
@@ -404,103 +405,103 @@ func init() {
 			default:
 				args = b - 1
 			}
-			
+
 			l.call(a, args, -1, true)
 			return true
 		},
 		// RETURN
 		func(l *State, i instruction) bool {
 			l.stack.cFrame().closeUpAll()
-			
+
 			a, b := i.a(), i.b()
 			b--
-			
+
 			l.stack.cFrame().retBase = a
-			
+
 			// Nothing to return
 			if b == 0 {
 				// Break
 				l.stack.cFrame().retC = 0
 				return true
 			}
-			
+
 			// Return all items from a to TOS
 			if b < 0 {
 				l.stack.cFrame().retC = l.stack.TopIndex() + 1 - a
 				return true
 			}
-			
+
 			// Fixed number of results
 			l.stack.cFrame().retC = b
 			return true
 		},
-	
+
 		// FORLOOP
 		func(l *State, i instruction) bool {
 			a := i.a()
 			step := l.stack.Get(a + 2)
 			av := l.arith(OpAdd, l.stack.Get(a), step) // Probably bad for performance...
-			
+
 			cmp := false
 			if toFloat(step) < 0 {
-				cmp = l.compare(OpLessOrEqual, l.stack.Get(a + 1), av, true) // I should probably do a raw check here too
+				cmp = l.compare(OpLessOrEqual, l.stack.Get(a+1), av, true) // I should probably do a raw check here too
 			} else {
-				cmp = l.compare(OpLessOrEqual, av, l.stack.Get(a + 1), true)
+				cmp = l.compare(OpLessOrEqual, av, l.stack.Get(a+1), true)
 			}
 			if !cmp {
 				return false
 			}
-			
+
 			l.stack.Set(a, av)
-			l.stack.Set(a + 3, av)
+			l.stack.Set(a+3, av)
 			l.stack.cFrame().pc += int32(i.sbx())
 			return false
 		},
 		// FORPREP
 		func(l *State, i instruction) bool {
 			a := i.a()
-			init, limit, step := l.stack.Get(a), l.stack.Get(a + 1), l.stack.Get(a + 2)
-			
+			init, limit, step := l.stack.Get(a), l.stack.Get(a+1), l.stack.Get(a+2)
+
 			// Make sure all three values are numbers, preferably integers.
 			iinit, oka := tryInt(init)
 			ilimit, okb := tryInt(limit)
 			istep, okc := tryInt(step)
 			if oka && okb && okc {
-				l.stack.Set(a, iinit - istep)
-				l.stack.Set(a + 1, ilimit)
-				l.stack.Set(a + 2, istep)
+				l.stack.Set(a, iinit-istep)
+				l.stack.Set(a+1, ilimit)
+				l.stack.Set(a+2, istep)
 				l.stack.cFrame().pc += int32(i.sbx())
 				return false
 			}
-	
+
 			finit, oka := tryFloat(init)
 			flimit, okb := tryFloat(limit)
 			fstep, okc := tryFloat(step)
 			if !(oka && okb && okc) {
 				luautil.Raise("All values passed to a numeric for loop must be numeric!", luautil.ErrTypGenRuntime)
 			}
-			
-			l.stack.Set(a, finit - fstep)
-			l.stack.Set(a + 1, flimit)
-			l.stack.Set(a + 2, fstep)
+
+			l.stack.Set(a, finit-fstep)
+			l.stack.Set(a+1, flimit)
+			l.stack.Set(a+2, fstep)
 			l.stack.cFrame().pc += int32(i.sbx())
 			return false
 		},
-	
+
 		// TFORCALL
 		func(l *State, i instruction) bool {
 			a, c := i.a(), i.c()
-			
+
 			// Clear the upper parts of the stack so the results of the iterator call will be at a known fixed index.
 			// TODO: Do I need to close upvalues here?
 			segC, _ := l.stack.bounds(-1)
-			l.stack.data = l.stack.data[:segC + a + 4]
-			
+			l.stack.data = l.stack.data[:segC+a+4]
+
 			l.stack.Push(l.stack.Get(a))
 			l.stack.Push(l.stack.Get(a + 1))
 			l.stack.Push(l.stack.Get(a + 2))
 			l.Call(2, c)
-			
+
 			// C Lua asserts that this is followed by a TFORLOOP, then jumps directly there, but why bother.
 			// Not handling these two op codes explicitly in tandem adds one cycle to to loop processing, but
 			// frankly there is not much gained by doing it the C way, particularly since I can't just "goto"
@@ -510,57 +511,57 @@ func init() {
 		// TFORLOOP
 		func(l *State, i instruction) bool {
 			a := i.a()
-			if l.stack.Get(a + 1) == nil {
+			if l.stack.Get(a+1) == nil {
 				return false
 			}
-			
-			l.stack.Set(a, l.stack.Get(a + 1))
+
+			l.stack.Set(a, l.stack.Get(a+1))
 			l.stack.cFrame().pc += int32(i.sbx())
 			return false
 		},
-	
+
 		// SETLIST
 		func(l *State, i instruction) bool {
 			// Here I assume the array part of the table is already preallocated to the correct size (which it
 			// will be in most cases). If not performance will suffer. I should probably fix this.
-			
+
 			a := i.a()
 			t := l.stack.Get(a).(*table)
 			b, c := i.b(), i.c()
-			
+
 			if b == 0 {
 				b = l.stack.TopIndex() - a
 			}
-			
+
 			if c == 0 {
 				c = l.stack.cFrame().reqNxtOp(opExtraArg).ax()
 			}
-			
-			first := (c - 1) * fieldsPerFlush + TableIndexOffset
+
+			first := (c-1)*fieldsPerFlush + TableIndexOffset
 			for i := 0; i < b; i++ {
-				t.SetRaw(int64(first + i), l.stack.Get(a+1+i))
+				t.SetRaw(int64(first+i), l.stack.Get(a+1+i))
 			}
-			
+
 			// Drop the values above "a"
 			l.stack.SetTop(a)
-			
+
 			return false
 		},
-	
+
 		// CLOSURE
 		func(l *State, i instruction) bool {
 			me := l.stack.cFrame()
 			p := me.fn.proto.prototypes[i.bx()]
-			
+
 			f := &function{
 				proto: p,
-				up: make([]*upValue, len(p.upVals)),
+				up:    make([]*upValue, len(p.upVals)),
 			}
-			
+
 			// luac seems to set isLocal for _ENV, but only for the top level function.
 			// Since the compile functions automatically close the _ENV value for the top
 			// level function this should not make any real difference, but it's weird...
-			
+
 			// Create/fetch upvalues:
 			// Iterate in reverse so that the unclosed list ends up in the right order.
 			for i := len(f.up) - 1; i >= 0; i-- {
@@ -571,30 +572,30 @@ func init() {
 					f.up[i] = me.fn.up[def.index]
 				}
 			}
-			
+
 			l.stack.Set(i.a(), f)
 			return false
 		},
-	
+
 		// VARARG
 		func(l *State, i instruction) bool {
-			a, b := i.a(), i.b() - 1
-			
+			a, b := i.a(), i.b()-1
+
 			argc := l.stack.cFrame().nArgs
 			if b == -1 {
 				b = argc
 			}
-			
+
 			for k := b - 1; k >= 0; k-- {
 				if k >= argc {
-					l.stack.Set(a + k, nil)
+					l.stack.Set(a+k, nil)
 					continue
 				}
-				l.stack.Set(a + k, l.stack.GetArgs(k))
+				l.stack.Set(a+k, l.stack.GetArgs(k))
 			}
 			return false
 		},
-	
+
 		// EXTRAARG
 		func(l *State, i instruction) bool {
 			luautil.Raise("Impossible instruction!", luautil.ErrTypMajorInternal)
@@ -616,6 +617,6 @@ func opCmp(l *State, i instruction) bool {
 	if !l.compare(i.getOpCode(), rk(l, i.b()), rk(l, i.c()), false) == (i.a() != 0) {
 		l.stack.cFrame().pc++
 	}
-	
+
 	return false
 }

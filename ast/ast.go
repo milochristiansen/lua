@@ -1,5 +1,5 @@
 /*
-Copyright 2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -36,7 +36,8 @@ type Node interface {
 type nodeBase struct {
 	line int
 }
-func (n *nodeBase) nodeMark()     { }
+
+func (n *nodeBase) nodeMark()     {}
 func (n *nodeBase) Line() int     { return n.line }
 func (n *nodeBase) setLine(l int) { n.line = l }
 
@@ -49,7 +50,8 @@ type Stmt interface {
 type stmtBase struct {
 	nodeBase
 }
-func (s *stmtBase) stmtMark(){}
+
+func (s *stmtBase) stmtMark() {}
 
 // Expr represents an expression element Node.
 type Expr interface {
@@ -60,7 +62,8 @@ type Expr interface {
 type exprBase struct {
 	nodeBase
 }
-func (s *exprBase) exprMark(){}
+
+func (s *exprBase) exprMark() {}
 
 // insert is a helper for inserting a new statement into a block.
 // Invalid values for at cause the statement to be appended to the end.
@@ -68,7 +71,7 @@ func insert(b []Stmt, at int, s Stmt) []Stmt {
 	if at < 0 || at >= len(b) {
 		return append(b, s)
 	}
-	
+
 	b = append(b, nil)
 	copy(b[at+1:], b[at:])
 	b[at] = s
@@ -81,11 +84,11 @@ func remove(b []Stmt, at int) []Stmt {
 	if at < 0 || at >= len(b) {
 		return b
 	}
-	
-	if at == len(b) - 1 {
+
+	if at == len(b)-1 {
 		return b[:at]
 	}
-	
+
 	return append(b[:at], b[at+1:]...)
 }
 
@@ -107,6 +110,7 @@ type Visitor interface {
 }
 
 type basicVisitor func(n Node) Visitor
+
 func (f basicVisitor) Visit(n Node) Visitor { return f(n) }
 
 // NewVisitor takes a simple function and turns it into a basic Visitor, ready to use with Walk.
@@ -124,7 +128,7 @@ func Walk(v Visitor, n Node) {
 	if v == nil {
 		return
 	}
-	
+
 	switch nn := n.(type) {
 	case *Assign:
 		for _, nnn := range nn.Targets {
@@ -209,11 +213,14 @@ func Walk(v Visitor, n Node) {
 	case *ConstBool:
 	case *ConstNil:
 	case *ConstVariadic:
+	default:
+		panic("IMPOSSIBLE")
 	}
 	v.Visit(nil)
 }
 
 type inspector func(Node) bool
+
 func (f inspector) Visit(n Node) Visitor {
 	if f(n) {
 		return f

@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -29,8 +29,8 @@ const (
 	ErrTypUndefined     ErrType = iota // Anything that does not fit a category.
 	ErrTypMajorInternal                // Errors that should not happen, ever.
 
-	ErrTypGenLexer  // Generic syntax errors caught by the lexer.
-	
+	ErrTypGenLexer // Generic syntax errors caught by the lexer.
+
 	ErrTypGenSyntax  // Generic syntax errors.
 	ErrTypGenRuntime // Generic run time errors.
 
@@ -43,10 +43,10 @@ const (
 
 // Error is used for any and every error that is produced by the VM and its peripherals.
 type Error struct {
-	Err   error
-	Msg   string
-	Type  ErrType
-	
+	Err  error
+	Msg  string
+	Type ErrType
+
 	Trace string
 }
 

@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -28,36 +28,36 @@ import "math"
 import "math/rand"
 
 // Open loads the "math" module when executed with "lua.(*State).Call".
-// 
+//
 // It would also be possible to use this with "lua.(*State).Require" (which has some side effects that
 // are inappropriate for a core library like this) or "lua.(*State).Preload" (which makes even less
 // sense for a core library).
 func Open(l *lua.State) int {
 	l.NewTable(0, 32) // 27 standard functions
 	tidx := l.AbsIndex(-1)
-	
+
 	l.SetTableFunctions(tidx, functions)
-	
+
 	l.Push("huge")
 	l.Push(math.MaxFloat64)
 	l.SetTableRaw(tidx)
-	
+
 	l.Push("maxinteger")
 	l.Push(int64(math.MaxInt64))
 	l.SetTableRaw(tidx)
-	
+
 	l.Push("mininteger")
 	l.Push(int64(math.MinInt64))
 	l.SetTableRaw(tidx)
-	
+
 	l.Push("pi")
 	l.Push(math.Pi)
 	l.SetTableRaw(tidx)
-	
+
 	l.Push("math")
 	l.PushIndex(tidx)
 	l.SetTableRaw(lua.GlobalsIndex)
-	
+
 	// Sanity check
 	if l.AbsIndex(-1) != tidx {
 		panic("Oops!")
@@ -77,7 +77,7 @@ var functions = map[string]lua.NativeFunction{
 				return 1
 			}
 		}
-		
+
 		f := l.ToFloat(1)
 		f = math.Abs(f)
 		l.Push(f)
@@ -94,7 +94,7 @@ var functions = map[string]lua.NativeFunction{
 	"atan": func(l *lua.State) int {
 		y := l.ToFloat(1)
 		x := l.OptFloat(2, 1)
-		
+
 		l.Push(math.Atan2(y, x))
 		return 1
 	},
@@ -127,20 +127,20 @@ var functions = map[string]lua.NativeFunction{
 				return 1
 			}
 		}
-		
+
 		l.Push(math.Mod(l.ToFloat(1), l.ToFloat(2)))
 		return 1
 	},
 	"log": func(l *lua.State) int { // ??? I hate math like this...
 		x := l.ToFloat(1)
 		base := l.OptFloat(2, math.E)
-		l.Push(math.Log(x)/math.Log(base))
+		l.Push(math.Log(x) / math.Log(base))
 		return 1
 	},
 	"max": func(l *lua.State) int {
 		top := l.AbsIndex(-1)
 		max := 1
-		for i := 1; i <= top; i ++ {
+		for i := 1; i <= top; i++ {
 			if l.Compare(max, i, lua.OpLessThan) {
 				max = i
 			}
@@ -151,7 +151,7 @@ var functions = map[string]lua.NativeFunction{
 	"min": func(l *lua.State) int {
 		top := l.AbsIndex(-1)
 		min := 1
-		for i := 1; i <= top; i ++ {
+		for i := 1; i <= top; i++ {
 			if l.Compare(i, min, lua.OpLessThan) {
 				min = i
 			}
@@ -183,7 +183,7 @@ var functions = map[string]lua.NativeFunction{
 		default:
 			m := l.ToInt(1)
 			n := l.ToInt(2)
-			l.Push(rand.Int63n(n - m + 1) + m)
+			l.Push(rand.Int63n(n-m+1) + m)
 		}
 		return 1
 	},
@@ -225,7 +225,7 @@ var functions = map[string]lua.NativeFunction{
 	"ult": func(l *lua.State) int {
 		i1 := uint64(l.ToInt(1))
 		i2 := uint64(l.ToInt(2))
-		
+
 		l.Push(i1 < i2)
 		return 1
 	},

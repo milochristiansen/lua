@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -56,24 +56,24 @@ func (l *State) Push(v interface{}) {
 		v = &function{
 			native: v2,
 			up: []*upValue{{
-					name: "_ENV",
-					index: -1,
-					closed: true,
-					val: l.global,
-					absIdx: -1,
-				},
+				name:   "_ENV",
+				index:  -1,
+				closed: true,
+				val:    l.global,
+				absIdx: -1,
+			},
 			},
 		}
 	case NativeFunction:
 		v = &function{
 			native: v2,
 			up: []*upValue{{
-					name: "_ENV",
-					index: -1,
-					closed: true,
-					val: l.global,
-					absIdx: -1,
-				},
+				name:   "_ENV",
+				index:  -1,
+				closed: true,
+				val:    l.global,
+				absIdx: -1,
+			},
 			},
 		}
 	default:
@@ -93,32 +93,32 @@ func (l *State) PushClosure(f NativeFunction, v ...int) {
 		return
 	}
 	c++
-	
+
 	fn := &function{
 		native: f,
-		up: make([]*upValue, c),
+		up:     make([]*upValue, c),
 	}
-	
+
 	// ALL native functions ALWAYS have their first upvalue set to the global table.
 	// This differs from standard Lua, but doesn't hurt anything.
 	fn.up[0] = &upValue{
-		name: "_ENV",
-		index: -1,
+		name:   "_ENV",
+		index:  -1,
 		closed: true,
-		val: l.global,
+		val:    l.global,
 		absIdx: -1,
 	}
-	
+
 	for i := 1; i < c; i++ {
 		fn.up[i] = &upValue{
-			name: "(native upvalue)",
-			index: -1,
+			name:   "(native upvalue)",
+			index:  -1,
 			closed: true,
-			val: l.get(v[i-1]),
+			val:    l.get(v[i-1]),
 			absIdx: -1,
 		}
 	}
-	
+
 	l.stack.Push(fn)
 }
 
@@ -134,10 +134,10 @@ func (l *State) Insert(i int) {
 	if i >= 1 {
 		i = i - 1
 	}
-	
+
 	v := l.get(-1)
 	l.Pop(1)
-	
+
 	l.stack.Insert(i, v)
 }
 
@@ -156,7 +156,7 @@ func (l *State) Set(d, s int) {
 	case d <= FirstUpVal:
 		l.stack.cFrame().setUp(d-FirstUpVal, v)
 	case d >= 1:
-		l.stack.Set(d - 1, v)
+		l.stack.Set(d-1, v)
 	case d < 0:
 		l.stack.Set(d, v)
 	default:
@@ -175,9 +175,9 @@ func (l *State) AbsIndex(i int) int {
 	if i >= 0 || i <= RegistryIndex {
 		return i
 	}
-	
+
 	// Need to add 2 so we get a 1 based index.
-	return l.stack.TopIndex()+i+2
+	return l.stack.TopIndex() + i + 2
 }
 
 // Helper
@@ -188,7 +188,7 @@ func (l *State) get(i int) value {
 	case i == GlobalsIndex:
 		return l.global
 	case i <= FirstUpVal:
-		return l.stack.cFrame().getUp(FirstUpVal-i)
+		return l.stack.cFrame().getUp(FirstUpVal - i)
 	case i > 0:
 		return l.stack.Get(i - 1)
 	case i < 0:
@@ -256,10 +256,12 @@ func (l *State) OptInt(i int, d int64) int64 {
 
 // ToString reads a value from the stack at the given index and formats it as a string.
 // Negative indexes are relative to TOS, positive indexes are absolute.
-// This will call a __tostring meta method if provided.
+// This will call a __tostring metamethod if provided.
+//
+// This is safe if no metamethods are called, but may panic if the metamethod errors out.
 func (l *State) ToString(i int) string {
 	v := l.get(i)
-	
+
 	meth := l.hasMetaMethod(v, "__tostring")
 	if meth != nil {
 		l.Push(meth)
@@ -333,6 +335,8 @@ func (l *State) GetRaw(i int) interface{} {
 // Arith performs the specified the arithmetic operator with the top two items on the stack (or just
 // the top item for OpUMinus and OpBinNot). The result is pushed onto the stack. See "lua_arith" in
 // the Lua 5.3 Reference Manual.
+//
+// This may raise an error if they values are not appropriate for the given operator.
 func (l *State) Arith(op opCode) {
 	a := l.stack.Get(-2)
 	b := a
@@ -346,10 +350,12 @@ func (l *State) Arith(op opCode) {
 
 // Compare performs the specified the comparison operator with the items at the given stack indexes.
 // See "lua_compare" in the Lua 5.3 Reference Manual.
+//
+// This may raise an error if they values are not appropriate for the given operator.
 func (l *State) Compare(i1, i2 int, op opCode) bool {
 	a := l.get(i1)
 	b := l.get(i2)
-	
+
 	return l.compare(op, a, b, false)
 }
 
@@ -384,12 +390,12 @@ func (l *State) GetTableRaw(i int) TypeID {
 	t := l.get(i)
 	k := l.stack.Get(-1)
 	l.Pop(1)
-	
+
 	tbl, ok := t.(*table)
 	if !ok {
 		luautil.Raise("Value is not a table.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	v := tbl.GetRaw(k)
 	l.Push(v)
 	return typeOf(v)
@@ -410,63 +416,72 @@ func (l *State) SetTableRaw(i int) {
 	k := l.stack.Get(-2)
 	v := l.stack.Get(-1)
 	l.Pop(2)
-	
+
 	tbl, ok := t.(*table)
 	if !ok {
 		luautil.Raise("Value is not a table.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	tbl.SetRaw(k, v)
 }
 
 // SetTableFunctions does a raw set for each function in the provided map, using it's map key as the table key.
+// This a simply a loop around calls to SetTableRaw, provided for convenience.
 func (l *State) SetTableFunctions(i int, funcs map[string]NativeFunction) {
 	i = l.AbsIndex(i)
-	
+
 	for k, v := range funcs {
 		l.Push(k)
-		l.Push(v) // This automatically wraps the native function
+		l.Push(v)        // This automatically wraps the native function
 		l.SetTableRaw(i) // Me being lazy...
 	}
 }
 
 // Next is a basic table iterator.
+//
 // Pass in the index of a table, Next will pop a key from the stack and push the next key and it's value.
 // This function is not reentrant! Iteration order changes with each iteration, so trying to
 // do two separate iterations of a single table at the same time will result in all kinds of weirdness.
 // If you use this iterator in production code you need your head examined, it is here strictly to power
 // the standard library function `next` (which you also should not use).
+//
+// If the given value is not a table this will raise an error.
+//
 // See GetIter.
 func (l *State) Next(i int) {
 	t := l.get(i)
 	k := l.stack.Get(-1)
 	l.Pop(1)
-	
+
 	tbl, ok := t.(*table)
 	if !ok {
 		luautil.Raise("Value is not a table.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	nk, nv := tbl.Next(k)
 	l.Push(nk)
 	l.Push(nv)
 }
 
 // GetIter pushes a table iterator onto the stack.
+//
 // This value is type "userdata" and has a "__call" meta method. Calling the iterator will
 // push the next key/value pair onto the stack. The key is not required for the next
 // iteration, so unlike Next you must pop both values.
+//
 // The end of iteration is signaled by returning a single nil value.
+//
+// If the given value is not a table this will raise an error.
 func (l *State) GetIter(i int) {
 	t := l.get(i)
-	
+
 	tbl, ok := t.(*table)
 	if !ok {
 		luautil.Raise("Value is not a table.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	l.Push(newTableIter(tbl))
-	
+
 	l.NewTable(0, 1)
 	l.Push("__call")
 	l.Push(func(l *State) int {
@@ -482,7 +497,7 @@ func (l *State) GetIter(i int) {
 	})
 	l.SetTableRaw(-3)
 	l.SetMetaTable(-2)
-	
+
 	// Alternate function version
 	//l.Push(func(l *State) int {
 	//	i := l.ToUser(FirstUpVal).(*tableIter)
@@ -501,42 +516,99 @@ func (l *State) GetIter(i int) {
 	//}
 }
 
-// ForEachInTable is a simple wrapper around GetIter and is provided as a convenience.
-// 
+// ForEachRaw is a simple wrapper around GetIter and is provided as a convenience.
+//
 // The given function is called once for every item in the table at t. For each call of the
 // function the value is at -1 and the key at -2. You MUST keep the stack balanced inside
 // the function! Do not pop the key and value off the stack before returning!
+//
+// The value returned by the iteration function determines if ForEach should return early.
+// Return false to break, return true to continue to the next iteration.
+//
 // Little to no error checking is done, as this is a simple convenience wrapper around
-// a common sequence of public API functions.
-func (l *State) ForEachInTable(t int, f func()) {
+// a common sequence of public API functions (may raise errors).
+func (l *State) ForEachRaw(t int, f func() bool) {
 	// I never guessed that FORTH style stack comments would be useful in Go...
-	l.GetIter(t) // -- iter
+	l.GetIter(t)    // -- iter
 	l.PushIndex(-1) // iter -- iter iter
-	l.Call(0, 2) // iter -- key value
+	l.Call(0, 2)    // iter iter -- iter key value
 	for !l.IsNil(-2) {
-		f()
-		
-		l.Pop(2) // key value --
+		ok := f()
+		if !ok {
+			break
+		}
+
+		l.Pop(2)        // key value --
 		l.PushIndex(-1) // iter -- iter iter
-		l.Call(0, 2) // iter -- key value
+		l.Call(0, 2)    // iter iter -- iter key value
 	}
-	l.Pop(3) // key value iter --
+	l.Pop(3) // iter key value --
+}
+
+// ForEachInTable is a simple alias/wrapper for ForEachRaw.
+//
+// Deprecated: Don't use for new code! This is here strictly for legacy support!
+func (l *State) ForEachInTable(t int, f func()) {
+	l.ForEachRaw(t, func() bool {
+		f()
+		return true
+	})
+}
+
+// ForEach is a fancy version of ForEachRaw that respects metamethods (to be specific, __pairs).
+//
+// The given function is called once for every item in the table at t. For each call of the
+// function the value is at -1 and the key at -2. You MUST keep the stack balanced inside
+// the function! Do not pop the key and value off the stack before returning!
+//
+// The value returned by the iteration function determines if ForEach should return early.
+// Return false to break, return true to continue to the next iteration.
+//
+// Little to no error checking is done, as this is a simple convenience wrapper around
+// a common sequence of public API functions (may raise errors).
+func (l *State) ForEach(t int, f func() bool) {
+	tbl := l.AbsIndex(t)
+	typ := l.GetMetaField(tbl, "__pairs")
+	if typ != TypNil {
+		l.PushIndex(tbl) // meta -- meta tbl
+		l.Call(1, 3)     // meta tbl -- iter key value
+		l.PushIndex(-3)  // iter key value -- iter key value iter
+		l.Insert(-3)     // iter key value iter -- iter iter key value
+	} else {
+		l.GetIter(tbl)  // iter
+		l.PushIndex(-1) // iter iter
+		l.PushIndex(1)  // iter iter key
+		l.Push(nil)     // iter iter key value
+	}
+	l.Call(2, 2) // iter iter key value -- iter key value
+
+	for !l.IsNil(-2) {
+		ok := f()
+		if !ok {
+			break
+		}
+
+		l.PushIndex(-3) // iter key value -- iter key value iter
+		l.Insert(-3)    // iter key value iter -- iter iter key value
+		l.Call(2, 2)    // iter iter key value -- iter key value
+	}
+	l.Pop(3) // iter key value --
 }
 
 // Other
 
 // SetUpVal sets upvalue "i" in the function at "f" to the value at "v".
 // If the upvalue index is out of range, "f" is not a function, or the upvalue
-// is not closed false is returned and nothing is done, else returns true and
+// is not closed, false is returned and nothing is done, else returns true and
 // sets the upvalue.
-// 
+//
 // Any other functions that share this upvalue will also be affected!
 func (l *State) SetUpVal(f, i, v int) bool {
 	fn, ok := l.get(f).(*function)
 	if !ok || i >= len(fn.up) {
 		return false
 	}
-	
+
 	def := fn.up[i]
 	if !def.closed {
 		return false
@@ -553,12 +625,12 @@ func (l *State) ConvertNumber(i int) {
 	if typeOf(v) == TypNumber {
 		return
 	}
-	
+
 	if n, ok := tryInt(v); ok {
 		l.Push(n)
 		return
 	}
-	
+
 	if n, ok := tryFloat(v); ok {
 		l.Push(n)
 		return
@@ -576,9 +648,9 @@ func (l *State) ConvertString(i int) {
 // DumpFunction converts the Lua function at the given index to a binary chunk. The returned value may
 // be used with LoadBinary to get a function equivalent to the dumped function (but without the original
 // function's up values).
-// 
+//
 // Currently the "strip" argument does nothing.
-// 
+//
 // This (obviously) only works with Lua functions, trying to dump a native function or a non-function
 // value will raise an error.
 func (l *State) DumpFunction(i int, strip bool) []byte {
@@ -586,15 +658,15 @@ func (l *State) DumpFunction(i int, strip bool) []byte {
 	if !ok {
 		luautil.Raise("Value is not a function.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	if f.native != nil {
 		luautil.Raise("Function cannot be dumped, is native.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	return dumpBin(&f.proto)
 }
 
-// Error pops a value off the top of the stack, converts it to a string, and raises it as an error.
+// Error pops a value off the top of the stack, converts it to a string, and raises it as a (general runtime) error.
 func (l *State) Error() {
 	msg := l.ToString(-1)
 	l.stack.Pop(1)
@@ -625,6 +697,8 @@ func (l *State) GetMetaTable(i int) bool {
 
 // SetMetaTable pops a table from the stack and sets it as the meta table of the value at the given index.
 // If the value is not a userdata or table then the meta table is set for ALL values of that type!
+//
+// If you try to set a metatable that is not a table or try to pass an invalid type this will raise an error.
 func (l *State) SetMetaTable(i int) {
 	v := l.get(i)
 	tbl, ok := l.stack.Get(-1).(*table)
@@ -632,7 +706,7 @@ func (l *State) SetMetaTable(i int) {
 	if !ok {
 		luautil.Raise("Value is not a table.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	switch v2 := v.(type) {
 	case nil:
 		l.metaTbls[TypNil] = tbl
@@ -659,18 +733,18 @@ func (l *State) SetMetaTable(i int) {
 // If this calls a meta method it may raise an error if the length is not an integer.
 func (l *State) Length(i int) int {
 	v := l.get(i)
-	
+
 	if s, ok := v.(string); ok {
 		return len(s)
 	}
-	
+
 	meth := l.hasMetaMethod(v, "__len")
 	if meth != nil {
 		f, ok := meth.(*function)
 		if !ok {
 			luautil.Raise("Meta method __len is not a function.", luautil.ErrTypGenRuntime)
 		}
-		
+
 		l.Push(f)
 		l.Push(v)
 		l.Call(1, 1)
@@ -678,7 +752,7 @@ func (l *State) Length(i int) int {
 		l.Pop(1)
 		return int(toInt(rtn))
 	}
-	
+
 	tbl, ok := v.(*table)
 	if !ok {
 		luautil.Raise("Value is not a string or table and has no __len meta method.", luautil.ErrTypGenRuntime)
@@ -690,11 +764,11 @@ func (l *State) Length(i int) int {
 // If the value is not a table or string this will raise an error.
 func (l *State) LengthRaw(i int) int {
 	v := l.get(i)
-	
+
 	if s, ok := v.(string); ok {
 		return len(s)
 	}
-	
+
 	tbl, ok := v.(*table)
 	if !ok {
 		luautil.Raise("Value is not a string or table.", luautil.ErrTypGenRuntime)
@@ -712,6 +786,9 @@ func (l *State) SetGlobal(name string) {
 // Require calls the given loader (with name as an argument) if there is no entry for "name" in package.loaded.
 // The result from the call is stored in package.loaded, and if global is true, in a global variable named "name".
 // In any case the module value is pushed onto the stack.
+//
+// It is possible (albeit, unlikely) that this will raise an error. AFAIK the only way for this to happen is if the
+// loader function errors out.
 func (l *State) Require(name string, loader NativeFunction, global bool) {
 	// This is the index C Lua uses. Do not assume it is properly set yet.
 	loaded, ok := l.registry.GetRaw("_LOADED").(*table)
@@ -725,7 +802,7 @@ func (l *State) Require(name string, loader NativeFunction, global bool) {
 		loaded = newTable(l, 0, 64)
 		l.registry.SetRaw("_LOADED", loaded)
 	}
-	
+
 	l.Push(loader)
 	l.Push(name)
 	l.Call(1, 1)
@@ -744,12 +821,12 @@ func (l *State) Preload(name string, loader NativeFunction) {
 		loaded = newTable(l, 0, 16)
 		l.registry.SetRaw("_PRELOAD", loaded)
 	}
-	
+
 	// Lazy, lazy...
 	l.Push(loader)
 	fn := l.get(-1)
 	l.Pop(1)
-	
+
 	loaded.SetRaw(name, fn)
 }
 
@@ -771,16 +848,18 @@ func (l *State) DebugValue(i int) {
 }
 
 // ListFunc prints an assembly listing of the given function's code.
+//
+// If the value is not a script function this will raise an error.
 func (l *State) ListFunc(i int) {
 	f, ok := l.get(i).(*function)
 	if !ok {
 		luautil.Raise("Value is not a function.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	if f.native != nil {
 		luautil.Raise("Function cannot be listed, is native.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	l.Println(f.proto.String())
 }
 
@@ -790,26 +869,26 @@ func (l *State) ListFunc(i int) {
 func (l *State) asFunc(proto *funcProto, env *table) *function {
 	f := &function{
 		proto: *proto,
-		up: make([]*upValue, len(proto.upVals)),
+		up:    make([]*upValue, len(proto.upVals)),
 	}
 	for i := range f.up {
 		def := proto.upVals[i].makeUp()
-		
+
 		// Don't set name or index! name may come in from debug info, index is meaningless when closed.
 		def.closed = true
 		def.absIdx = -1
 		f.up[i] = def
 	}
-	
+
 	// Top level functions must have their first upvalue as _ENV
 	if len(f.up) > 0 {
 		if f.up[0].name != "_ENV" && f.up[0].name != "" {
 			luautil.Raise("Top level function without _ENV or _ENV in improper position.", luautil.ErrTypGenRuntime)
 		}
-		
+
 		f.up[0].val = env
 	}
-	
+
 	return f
 }
 
@@ -821,7 +900,7 @@ func (l *State) LoadBinary(in io.Reader, name string, env int) error {
 	if err != nil {
 		return err
 	}
-	
+
 	envv := l.global
 	if env != 0 {
 		ok := false
@@ -830,7 +909,7 @@ func (l *State) LoadBinary(in io.Reader, name string, env int) error {
 			return luautil.Error{Msg: "Value used as environment is not a table.", Type: luautil.ErrTypGenRuntime}
 		}
 	}
-	
+
 	l.stack.Push(l.asFunc(proto, envv))
 	return nil
 }
@@ -850,7 +929,7 @@ func (l *State) LoadText(in io.Reader, name string, env int) error {
 	if err != nil {
 		return err
 	}
-	
+
 	envv := l.global
 	if env != 0 {
 		ok := false
@@ -859,7 +938,7 @@ func (l *State) LoadText(in io.Reader, name string, env int) error {
 			return luautil.Error{Msg: "Value used as environment is not a table.", Type: luautil.ErrTypGenRuntime}
 		}
 	}
-	
+
 	l.stack.Push(l.asFunc(proto, envv))
 	return nil
 }
@@ -867,10 +946,10 @@ func (l *State) LoadText(in io.Reader, name string, env int) error {
 // LoadTextExternal loads a text chunk into memory and pushes the result onto the stack.
 // If there is an error it is returned and nothing is pushed.
 // Set env to 0 to use the default environment.
-// 
+//
 // This version looks for and runs "luac" to compile the chunk. Make sure luac is on
 // your path.
-// 
+//
 // This function is not safe for concurrent use.
 func (l *State) LoadTextExternal(in io.Reader, name string, env int) error {
 	outFile := os.TempDir() + "/dctech.lua.bin" // Go seems to lack a function to get a temporary file name, so this is unsafe for concurrent use!
@@ -885,13 +964,13 @@ func (l *State) LoadTextExternal(in io.Reader, name string, env int) error {
 		}
 		return luautil.Error{Msg: msg, Type: luautil.ErrTypWrapped, Err: err}
 	}
-	
+
 	file, err := os.Open(outFile)
 	if err != nil {
 		return luautil.Error{Msg: "Error opening luac output file", Type: luautil.ErrTypWrapped, Err: err}
 	}
 	defer file.Close()
-	
+
 	envv := l.global
 	if env != 0 {
 		ok := false
@@ -900,7 +979,7 @@ func (l *State) LoadTextExternal(in io.Reader, name string, env int) error {
 			return luautil.Error{Msg: "Value used as environment is not a table.", Type: luautil.ErrTypGenRuntime}
 		}
 	}
-	
+
 	proto, err := loadBin(file, name)
 	if err != nil {
 		return err
@@ -918,81 +997,121 @@ func (l *State) Call(args, rtns int) {
 	if args < 0 {
 		luautil.Raise("Cannot use Call if arg count is unknown.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	fi := -(args + 1) // Generate a relative index for the function
 	l.call(fi, args, rtns, false)
 }
 
 // PCall is exactly like Call, except instead of panicking when it encounters an error the
 // error is cleanly recovered and returned.
+//
 // On error the stack is reset to the way it was before the call minus the function and it's arguments,
 // the State may then be reused.
 func (l *State) PCall(args, rtns int) (err error) {
+	defer l.Recover(args+1, true)(&err)
+
+	l.Call(args, rtns)
+	return nil
+}
+
+// Protect calls f inside an error handler. Use when you need to use API functions that may "raise errors" outside of
+// other error handlers (such as PCall).
+//
+// Protect does the same cleanup PCall does, so it is safe to run code with Call inside a Protected function.
+func (l *State) Protect(f func()) (err error) {
+	defer l.Recover(0, false)(&err)
+
+	f()
+
+	return nil
+}
+
+// Recover is a simple error handler. Use when you need to use API functions that may "raise errors" outside of
+// other error handlers (such as PCall).
+//
+// Usage of recover is a little hard to explain, so here is a quick example call:
+//
+//	defer l.Recover(0, false)(&err)
+//
+// Recover is split into two parts so that it can gather stack data before you potentially mess it up (that way
+// it knows how far to go when unwinding). You should not call Recover before you need it, as if there is an error
+// everything that was added to the stack after it is called will be dropped.
+//
+// onStk is the number of existing items on the stack that you want to have cleaned if there is an error. 99%
+// of the time you will want to set this to 0! Only set to something other than 0 if your are absolutely sure
+// you know what you are doing!
+//
+// If trace is false generated errors will not have attached stack traces (which is generally what you want when
+// working with native code).
+//
+// Recover is the error handler and cleanup function powering PCall and Protect. Those functions simply wrap this
+// one for easier use.
+func (l *State) Recover(onStk int, trace bool) func(*error) {
 	frames := len(l.stack.frames)
-	top := len(l.stack.data) - args - 1
-	defer func() {
+	top := len(l.stack.data) - onStk
+
+	return func(err *error) {
 		e := recover()
 		if e != nil {
 			// Compile a stack trace.
-			// TODO: The produced trace is terrible, do this properly.
-			sources := []string{}
-			lines := []int{}
-			for i := len(l.stack.frames) - 1; i >= frames; i-- {
-				frame := l.stack.frames[i]
-				if frame.fn.native == nil {
-					sources = append(sources, frame.fn.proto.source)
-					if int(frame.pc) < len(frame.fn.proto.lineInfo) {
-						lines = append(lines, frame.fn.proto.lineInfo[frame.pc])
-					} else if len(frame.fn.proto.lineInfo) > 0 {
-						lines = append(lines, frame.fn.proto.lineInfo[len(frame.fn.proto.lineInfo)-1])
+			traceS := ""
+			if trace {
+				// TODO: The produced trace is terrible, do this properly.
+				sources := []string{}
+				lines := []int{}
+				for i := len(l.stack.frames) - 1; i >= frames; i-- {
+					frame := l.stack.frames[i]
+					if frame.fn.native == nil {
+						sources = append(sources, frame.fn.proto.source)
+						if int(frame.pc) < len(frame.fn.proto.lineInfo) {
+							lines = append(lines, frame.fn.proto.lineInfo[frame.pc])
+						} else if len(frame.fn.proto.lineInfo) > 0 {
+							lines = append(lines, frame.fn.proto.lineInfo[len(frame.fn.proto.lineInfo)-1])
+						} else {
+							lines = append(lines, -1)
+						}
 					} else {
+						sources = append(sources, "(native code)")
 						lines = append(lines, -1)
 					}
-				} else {
-					sources = append(sources, "(native code)")
-					lines = append(lines, -1)
+				}
+
+				for i := range sources {
+					if lines[i] == -1 {
+						traceS += fmt.Sprintf("\n    \"%v\"", sources[i])
+						continue
+					}
+					traceS += fmt.Sprintf("\n    \"%v\": <line: %v>", sources[i], lines[i])
+				}
+
+				if l.NativeTrace {
+					buf := make([]byte, 4096)
+					buf = buf[:runtime.Stack(buf, true)]
+					traceS = fmt.Sprintf("%v\n\nNative Trace:\n%s\n", traceS, buf)
 				}
 			}
-			
-			trace := ""
-			for i := range sources {
-				if lines[i] == -1 {
-					trace += fmt.Sprintf("\n    \"%v\"", sources[i])
-					continue
-				}
-				trace += fmt.Sprintf("\n    \"%v\": <line: %v>", sources[i], lines[i])
-			}
-			
-			if l.NativeTrace {
-				buf := make([]byte, 4096)
-				buf = buf[:runtime.Stack(buf, true)]
-				trace = fmt.Sprintf("%v\n\nNative Trace:\n%s\n", trace, buf)
-			}
-			
+
 			// Before we strip the stack we need to close all upvalues in the section we will be stripping, just in
 			// case a closure was assigned to another upvalue.
-			l.stack.frames[len(l.stack.frames) - 1].closeUpAbs(top)
-			
+			l.stack.frames[len(l.stack.frames)-1].closeUpAbs(top)
+
 			// Make sure the stack is back to the way we found it, minus the function and it's arguments.
 			l.stack.frames = l.stack.frames[:frames]
 			for i := len(l.stack.data) - 1; i >= top; i-- {
 				l.stack.data[i] = nil
 			}
 			l.stack.data = l.stack.data[:top]
-			
+
 			// Attach the stack trace to the error
 			switch e2 := e.(type) {
 			case luautil.Error:
-				e2.Trace = trace
-				err = e2
+				e2.Trace = traceS
+				*err = e2
 			case error:
-				err = luautil.Error{Type: luautil.ErrTypWrapped, Err: e2, Trace: trace}
+				*err = luautil.Error{Type: luautil.ErrTypWrapped, Err: e2, Trace: traceS}
 			default:
-				err = luautil.Error{Type: luautil.ErrTypEvil, Err: fmt.Errorf("%v", e), Trace: trace}
+				*err = luautil.Error{Type: luautil.ErrTypEvil, Err: fmt.Errorf("%v", e), Trace: traceS}
 			}
 		}
-	}()
-	
-	l.Call(args, rtns)
-	return nil
+	}
 }

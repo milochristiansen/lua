@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -23,58 +23,14 @@ misrepresented as being the original software.
 package lua_test
 
 import "testing"
-import "strings"
 
-import "github.com/milochristiansen/lua"
-import "github.com/milochristiansen/lua/lmodbase"
-import "github.com/milochristiansen/lua/lmodpackage"
-import "github.com/milochristiansen/lua/lmodstring"
-import "github.com/milochristiansen/lua/lmodtable"
-import "github.com/milochristiansen/lua/lmodmath"
-
-func assertBlock(t *testing.T, blk string, v interface{}) {
-	l := lua.NewState()
-	
-	// Don't include the string extensions.
-	l.Push("_NO_STRING_EXTS")
-	l.Push(true)
-	l.SetTableRaw(lua.RegistryIndex)
-	
-	// Require the standard libraries
-	l.Push(lmodbase.Open)
-	l.Call(0, 0)
-	l.Push(lmodpackage.Open)
-	l.Call(0, 0)
-	l.Push(lmodstring.Open)
-	l.Call(0, 0)
-	l.Push(lmodtable.Open)
-	l.Call(0, 0)
-	l.Push(lmodmath.Open)
-	l.Call(0, 0)
-	
-	err := l.LoadText(strings.NewReader(blk), "error", 0)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	
-	err = l.PCall(0, 1)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	
-	l.Push(v)
-	if !l.Compare(-1, -2, lua.OpEqual) {
-		t.Error("Test did not return expected value: %v vs %v", l.ToString(-1), l.ToString(-2))
-	}
-}
+import "github.com/milochristiansen/lua/testhelp"
 
 // The tests in this file run blocks of code from the official Lua test suite. Most (if not all) of these tests are
 // modified in some way, mostly to remove stuff dependent on APIs not available in my VM.
 
 func TestAssign(t *testing.T) {
-	assertBlock(t, `-- attrib.lua
+	testhelp.AssertBlock(t, testhelp.MkState(), `-- attrib.lua
 local res, res2 = 27
 
 a, b = 1, 2+3
@@ -87,17 +43,22 @@ a[f()], b, a[f()+3] = f(), a, 'x'
 assert(a[10] == 10 and b == a and a[13] == 'x')
 
 do
-  local f = function (n) local x = {}; for i=1,n do x[i]=i end;
-                         return table.unpack(x) end;
-  local a,b,c
-  a,b = 0, f(1)
-  assert(a == 0 and b == 1)
-  A,b = 0, f(1)
-  assert(A == 0 and b == 1)
-  a,b,c = 0,5,f(4)
-  assert(a==0 and b==5 and c==1)
-  a,b,c = 0,5,f(0)
-  assert(a==0 and b==5 and c==nil)
+	local f = function (n)
+		local x = {}
+		for i = 1, n do
+			x[i] = i
+		end
+		return table.unpack(x)
+	end
+	local a,b,c
+	a,b = 0, f(1)
+	assert(a == 0 and b == 1)
+	A,b = 0, f(1)
+	assert(A == 0 and b == 1)
+	a,b,c = 0,5,f(4)
+	assert(a==0 and b==5 and c==1)
+	a,b,c = 0,5,f(0)
+	assert(a==0 and b==5 and c==nil)
 end
 
 a, b, c, d = 1 and nil, 1 or nil, (1 and (nil or 1)), 6
@@ -235,7 +196,7 @@ return res
 }
 
 func TestBits(t *testing.T) {
-	assertBlock(t, `-- bitwise.lua
+	testhelp.AssertBlock(t, testhelp.MkState(), `-- bitwise.lua
 local numbits = 64
 
 assert(~0 == -1)
@@ -291,7 +252,7 @@ assert(not pcall(function () return "0xffffffffffffffff\0" | 0 end))
 }
 
 func TestCalls(t *testing.T) {
-	assertBlock(t, `-- calls.lua
+	testhelp.AssertBlock(t, testhelp.MkState(), `-- calls.lua
 -- get the opportunity to test 'type' too ;)
 
 assert(type(1<2) == 'boolean')
@@ -503,7 +464,7 @@ return nil
 }
 
 func TestClosure(t *testing.T) {
-	assertBlock(t, `-- closure.lua
+	testhelp.AssertBlock(t, testhelp.MkState(), `-- closure.lua
 
 -- Fails, equality does not work for closures unless they are references to the same underlying instance, not sure if I
 -- can fix this or not.
@@ -639,6 +600,9 @@ assert(i == 11 and a[1]() == 1 and a[3]() == 3 and i == 4)
 -- 2. luac does not actually follow the spec (unlikely but possible, look at the table length operator)
 -- 3. There is some special case I am missing (for example since 14b is at the end of the block it may act like it is
 --    out of "y"'s scope).
+-- 
+-- OK, it turns out that there is an undocumented special case where you can always jump to a label that is the last
+-- item in it's block. For now my compiler does not support this...
 
 -- testing closures created in 'then' and 'else' parts of 'if's
 --a = {}
@@ -682,10 +646,10 @@ t()
 
 return nil
 `, nil)
-}//*/
-
-func TestX(t *testing.T) {
-	assertBlock(t, `-- .lua
-
-`, nil)
 }
+
+//func TestX(t *testing.T) {
+//	testhelp.AssertBlock(t, testhelp.MkState(), `-- .lua
+//
+//`, nil)
+//}

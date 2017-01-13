@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -29,11 +29,11 @@ import "strconv"
 import "fmt"
 
 // Open loads the "string" module when executed with "lua.(*State).Call".
-// 
+//
 // It would also be possible to use this with "lua.(*State).Require" (which has some side effects that
 // are inappropriate for a core library like this) or "lua.(*State).Preload" (which makes even less
 // sense for a core library).
-// 
+//
 // The following standard Lua functions/fields are not provided:
 //	string.gmatch
 //	string.gsub
@@ -41,9 +41,9 @@ import "fmt"
 //	string.pack
 //	string.packsize
 //	string.unpack
-// 
+//
 // Additionally "string.find" does not allow pattern based searching.
-// 
+//
 // The following non-standard functions are provided:
 //	string.count
 //	string.hasprefix
@@ -63,20 +63,21 @@ import "fmt"
 func Open(l *lua.State) int {
 	l.NewTable(0, 32) // 11 standard functions (+ 6 DNI) + 13 nonstandard
 	tidx := l.AbsIndex(-1)
-	
+
 	l.SetTableFunctions(tidx, functions)
-	
+
 	l.Push("_NO_STRING_EXTS")
 	l.GetTableRaw(lua.RegistryIndex)
-	ok := l.ToBool(-1); l.Pop(1)
+	ok := l.ToBool(-1)
+	l.Pop(1)
 	if !ok {
 		l.SetTableFunctions(tidx, extFunctions)
 	}
-	
+
 	l.Push("string")
 	l.PushIndex(tidx)
 	l.SetTableRaw(lua.GlobalsIndex)
-	
+
 	l.Push("")
 	l.NewTable(0, 1)
 	l.Push("__index")
@@ -84,7 +85,7 @@ func Open(l *lua.State) int {
 	l.SetTableRaw(-3)
 	l.SetMetaTable(-2)
 	l.Pop(1)
-	
+
 	// Sanity check
 	if l.AbsIndex(-1) != tidx {
 		panic("ItNoWork!")
@@ -97,24 +98,24 @@ var functions = map[string]lua.NativeFunction{
 		str := l.OptString(1, "")
 		i := l.OptInt(2, 1)
 		j := l.OptInt(3, i)
-		
+
 		if i < 0 {
-			i = int64(len(str)) + (i+1)
+			i = int64(len(str)) + (i + 1)
 		}
 		if j < 0 {
-			j = int64(len(str)) + (j+1)
+			j = int64(len(str)) + (j + 1)
 		}
-		
-		if i < 1  {
+
+		if i < 1 {
 			i = 1
 		}
-		if j > int64(len(str))  {
+		if j > int64(len(str)) {
 			j = int64(len(str))
 		}
 		if i > j {
 			return 0
 		}
-		
+
 		n := j - i + 1
 		for k := int64(0); k < n; k++ {
 			l.Push(int64(str[k+j-1]))
@@ -138,15 +139,15 @@ var functions = map[string]lua.NativeFunction{
 		str := l.OptString(1, "")
 		sub := l.OptString(2, "")
 		i := l.OptInt(3, 1)
-		
+
 		if i < 0 {
-			i = int64(len(str)) + (i+1)
+			i = int64(len(str)) + (i + 1)
 		}
-		if i < 1  {
+		if i < 1 {
 			i = 1
 		}
 		i--
-		
+
 		idx := strings.Index(str[i:], sub)
 		if idx == -1 {
 			return 0
@@ -161,7 +162,7 @@ var functions = map[string]lua.NativeFunction{
 		for i := 2; i <= n; i++ {
 			args = append(args, l.GetRaw(i))
 		}
-		
+
 		l.Push(fmt.Sprintf(l.OptString(1, ""), args...))
 		return 1
 	},
@@ -183,24 +184,24 @@ var functions = map[string]lua.NativeFunction{
 		str := l.OptString(1, "")
 		c := l.OptInt(2, 1)
 		sep := l.OptString(3, "")
-		
-		b := make([]byte, 0, (int64(len(str)) + int64(len(sep)))*c)
-		
+
+		b := make([]byte, 0, (int64(len(str))+int64(len(sep)))*c)
+
 		for i := int64(0); i < c; i++ {
 			b = append(b, str...)
 			if i+1 < c {
 				b = append(b, sep...)
 			}
 		}
-		
+
 		l.Push(string(b))
 		return 1
 	},
 	"reverse": func(l *lua.State) int {
 		str := l.OptString(1, "")
-		
+
 		b := make([]byte, 0, len(str))
-		for i := len(str)-1; i >= 0; i-- {
+		for i := len(str) - 1; i >= 0; i-- {
 			b = append(b, str[i])
 		}
 		l.Push(string(b))
@@ -210,28 +211,28 @@ var functions = map[string]lua.NativeFunction{
 		str := l.OptString(1, "")
 		i := l.OptInt(2, 1)
 		j := l.OptInt(3, -1)
-		
+
 		if i < 0 {
-			i = int64(len(str)) + (i+1)
+			i = int64(len(str)) + (i + 1)
 		}
 		if j < 0 {
-			j = int64(len(str)) + (j+1)
+			j = int64(len(str)) + (j + 1)
 		}
-		
-		if i < 1  {
+
+		if i < 1 {
 			i = 1
 		}
-		if j > int64(len(str))  {
+		if j > int64(len(str)) {
 			j = int64(len(str))
 		}
 		if i > j {
 			return 0
 		}
-		
+
 		i--
 		j--
-		
-		l.Push(str[i:j+1])
+
+		l.Push(str[i : j+1])
 		return 1
 	},
 	// unpack
@@ -298,7 +299,7 @@ var extFunctions = map[string]lua.NativeFunction{
 		result := strings.SplitN(str, sep, n)
 		l.NewTable(len(result), 0)
 		for i := range result {
-			l.Push(int64(i+1))
+			l.Push(int64(i + 1))
 			l.Push(result[i])
 			l.SetTableRaw(-3)
 		}
@@ -313,7 +314,7 @@ var extFunctions = map[string]lua.NativeFunction{
 		result := strings.SplitAfterN(str, sep, n)
 		l.NewTable(len(result), 0)
 		for i := range result {
-			l.Push(int64(i+1))
+			l.Push(int64(i + 1))
 			l.Push(result[i])
 			l.SetTableRaw(-3)
 		}

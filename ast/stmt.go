@@ -1,5 +1,5 @@
 /*
-Copyright 2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -25,13 +25,13 @@ package ast
 // Assign represents an assignment statement.
 type Assign struct {
 	stmtBase
-	
+
 	// Is this a local variable declaration statement?
 	LocalDecl bool
-	
+
 	// Special case handling for "local function f() end", this should be treated like "local f; f = function() end".
 	LocalFunc bool
-	
+
 	Targets []Expr
 	Values  []Expr // If len == 0 no values were given, if len == 1 then the value may be a multi-return function call.
 }
@@ -41,7 +41,7 @@ type Assign struct {
 // DoBlock represents a do block (do ... end).
 type DoBlock struct {
 	stmtBase
-	
+
 	Block []Stmt
 }
 
@@ -49,7 +49,7 @@ type DoBlock struct {
 // 'elseif' statements are encoded as nested if statements.
 type If struct {
 	stmtBase
-	
+
 	Cond Expr
 	Then []Stmt
 	Else []Stmt
@@ -58,7 +58,7 @@ type If struct {
 // WhileLoop represents a while loop.
 type WhileLoop struct {
 	stmtBase
-	
+
 	Cond  Expr
 	Block []Stmt
 }
@@ -66,7 +66,7 @@ type WhileLoop struct {
 // RepeatUntilLoop represents a repeat-until loop.
 type RepeatUntilLoop struct {
 	stmtBase
-	
+
 	Cond  Expr
 	Block []Stmt
 }
@@ -74,29 +74,29 @@ type RepeatUntilLoop struct {
 // ForLoopNumeric represents a numeric for loop.
 type ForLoopNumeric struct {
 	stmtBase
-	
-	Counter  string
-	
+
+	Counter string
+
 	Init  Expr
 	Limit Expr
 	Step  Expr
-	
+
 	Block []Stmt
 }
 
 // ForLoopGeneric represents a generic for loop.
 type ForLoopGeneric struct {
 	stmtBase
-	
+
 	Locals []string
 	Init   []Expr // This will always be adjusted to three return results, but AFAIK there is no actual limit on expression count.
-	
+
 	Block []Stmt
 }
 
 type Goto struct {
 	stmtBase
-	
+
 	// True if this Goto is actually a break statement. There is no matching label.
 	// If Label is not "break" then this is actually a continue statement (a custom
 	// extension that the default lexer/parser does not use).
@@ -106,12 +106,12 @@ type Goto struct {
 
 type Label struct {
 	stmtBase
-	
+
 	Label string
 }
 
 type Return struct {
 	stmtBase
-	
+
 	Items []Expr
 }

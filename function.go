@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -43,7 +43,7 @@ type funcProto struct {
 
 	parameterCount int
 	maxStackSize   int
-	
+
 	// 0 = is not variadic
 	// 2 = is variadic but `...` is never used (so there is no need to actually save the parameters)
 	// 1 = is variadic and has at least one occurrence of `...`
@@ -57,7 +57,7 @@ func (f funcProto) String() string {
 func (f funcProto) str(prefix string) string {
 	out := new(bytes.Buffer)
 	fmt.Fprintf(out, "%v:%v:%v\n", f.source, f.lineDefined, f.lastLineDefined)
-	
+
 	w := tabwriter.NewWriter(out, 2, 8, 2, ' ', 0)
 	_ = w
 	fmt.Fprintf(out, "%v Code:\n", prefix)
@@ -75,7 +75,7 @@ func (f funcProto) str(prefix string) string {
 		if mode.a == 0 && mode.ax == 0 {
 			iout += "\t"
 		}
-		
+
 		switch mode.b {
 		case 1:
 			iout = fmt.Sprintf("%s\tB:%d", iout, i.b())
@@ -99,7 +99,7 @@ func (f funcProto) str(prefix string) string {
 		if mode.b == 0 && mode.bx == 0 && mode.sbx == 0 {
 			iout += "\t"
 		}
-		
+
 		switch mode.c {
 		case 1:
 			iout = fmt.Sprintf("%s\tC:%d", iout, i.c())
@@ -115,7 +115,7 @@ func (f funcProto) str(prefix string) string {
 		default:
 			iout += "\t"
 		}
-		
+
 		if extra != "" {
 			fmt.Fprintf(w, "%v  [%v]\t%v\t;%v\n", prefix, j, iout, extra)
 		} else {
@@ -123,7 +123,7 @@ func (f funcProto) str(prefix string) string {
 		}
 	}
 	w.Flush()
-	
+
 	fmt.Fprintf(out, "%v Locals:\n", prefix)
 	if len(f.localVars) == 0 {
 		fmt.Fprintf(out, "%v  None.\n", prefix)
@@ -132,7 +132,7 @@ func (f funcProto) str(prefix string) string {
 		fmt.Fprintf(w, "%v  [%v]\t\"%v\":\t[%v,%v]\n", prefix, i, v.name, v.sPC-1, v.ePC-1)
 	}
 	w.Flush()
-	
+
 	fmt.Fprintf(out, "%v UpValues:\n", prefix)
 	if len(f.upVals) == 0 {
 		fmt.Fprintf(out, "%v  None.\n", prefix)
@@ -141,7 +141,7 @@ func (f funcProto) str(prefix string) string {
 		fmt.Fprintf(w, "%v  [%v]\t\"%v\":\tIdx:%v\tIsLocal:%v\n", prefix, i, v.name, v.index, v.isLocal)
 	}
 	w.Flush()
-	
+
 	fmt.Fprintf(out, "%v Constants:\n", prefix)
 	if len(f.constants) == 0 {
 		fmt.Fprintf(out, "%v  None.\n", prefix)
@@ -150,7 +150,7 @@ func (f funcProto) str(prefix string) string {
 		fmt.Fprintf(w, "%v  [%v]\t%#v\n", prefix, i, v)
 	}
 	w.Flush()
-	
+
 	fmt.Fprintf(out, "%v Closures:\n", prefix)
 	if len(f.prototypes) == 0 {
 		fmt.Fprintf(out, "%v  None.\n", prefix)
@@ -158,7 +158,7 @@ func (f funcProto) str(prefix string) string {
 	for i, p := range f.prototypes {
 		fmt.Fprintf(out, "%v  [%v] %v\n", prefix, i, p.str(fmt.Sprintf("%v  [%v]", prefix, i)))
 	}
-	
+
 	return string(bytes.TrimSpace(out.Bytes()))
 }
 
@@ -171,17 +171,17 @@ type localVar struct {
 type upDef struct {
 	// Is this upvalue a reference to one of its parent's locals? (Else it
 	// is a reference to one of its parent's upvalues)
-	isLocal bool 
-	index   int // Index into the parent function's locals or upvalues
+	isLocal bool
+	index   int    // Index into the parent function's locals or upvalues
 	name    string // Debug info
 }
 
 func (def upDef) makeUp() *upValue {
 	return &upValue{
 		isLocal: def.isLocal,
-		index: def.index,
-		name: def.name,
-		
+		index:   def.index,
+		name:    def.name,
+
 		absIdx: -1,
 	}
 }
@@ -190,15 +190,15 @@ func (def upDef) makeUp() *upValue {
 type upValue struct {
 	// Is this upvalue a reference to one of its parent's locals? (Else it
 	// is a reference to one of its parent's upvalues)
-	isLocal bool 
-	index   int // Index into the parent function's locals or upvalues
+	isLocal bool
+	index   int    // Index into the parent function's locals or upvalues
 	name    string // Debug info
-	
+
 	// closure information
-	closed  bool
-	val     value // closed
-	absIdx  int // isLocal && !closed (absolute stack index)
-	
+	closed bool
+	val    value // closed
+	absIdx int   // isLocal && !closed (absolute stack index)
+
 	// Unclosed link info, nil if not part of the unclosed list (the head pointer is part of the stack)
 	next *upValue
 }
@@ -210,7 +210,7 @@ type NativeFunction func(l *State) int
 type function struct {
 	proto  funcProto
 	native NativeFunction
-	
+
 	up []*upValue
 }
 
@@ -219,9 +219,9 @@ func (f *function) addUp(v value) int {
 	i := len(f.up)
 	f.up = append(f.up, &upValue{
 		closed: true,
-		val: v,
-		name: "(native upvalue)",
-		index: -1,
+		val:    v,
+		name:   "(native upvalue)",
+		index:  -1,
 		absIdx: -1,
 	})
 	return i

@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -25,24 +25,24 @@ package lmodpackage
 import "github.com/milochristiansen/lua"
 
 // Open loads the "package" module when executed with "lua.(*State).Call".
-// 
+//
 // It would also be possible to use this with "lua.(*State).Require" (which has some side effects that
 // are inappropriate for a core library like this) or "lua.(*State).Preload" (which makes even less
 // sense for a core library).
-// 
+//
 // The following standard Lua functions/fields are not provided:
 //	package.config
 //	package.cpath
 //	package.loadlib
 //	package.path
 //	package.searchpath
-// 
+//
 // Additionally only one searcher is added to "package.searchers" by default, it tries to load modules
 // from "package.preloaded".
 func Open(l *lua.State) int {
 	l.NewTable(0, 8)
 	tidx := l.AbsIndex(-1)
-	
+
 	// Setup "package.loaded", it may already exist in the registry if someone called Require.
 	l.Push("loaded")
 	l.Push("_LOADED")
@@ -54,7 +54,7 @@ func Open(l *lua.State) int {
 		l.SetTableRaw(lua.RegistryIndex)
 	}
 	l.SetTableRaw(tidx)
-	
+
 	// Now setup "package.preload", it may already exist in the registry if Preload was called.
 	l.Push("preload")
 	l.Push("_PRELOAD")
@@ -66,7 +66,7 @@ func Open(l *lua.State) int {
 		l.SetTableRaw(lua.RegistryIndex)
 	}
 	l.SetTableRaw(tidx)
-	
+
 	// Next, "package.searchers".
 	l.Push("searchers")
 	l.NewTable(8, 0)
@@ -84,12 +84,12 @@ func Open(l *lua.State) int {
 	})
 	l.SetTableRaw(-3)
 	l.SetTableRaw(tidx)
-	
+
 	// Install the module in the global "package".
 	l.Push("package")
 	l.PushIndex(tidx)
 	l.SetTableRaw(lua.GlobalsIndex)
-	
+
 	// Define "require". For some stupid reason the C Lua stores "package.searchers" as
 	// an upval for require (what's wrong with the registry?). For now I do the same, if
 	// only as a test of using upvalues from native functions...
@@ -97,9 +97,9 @@ func Open(l *lua.State) int {
 	l.GetTableRaw(tidx) // Grab a reference to package.searchers to use as an upvalue.
 	l.Push("require")
 	l.PushClosure(func(l *lua.State) int {
-		l.PushIndex(lua.FirstUpVal-1) // package.searchers
+		l.PushIndex(lua.FirstUpVal - 1) // package.searchers
 		searchers := l.AbsIndex(-1)
-		
+
 		msg := ""
 		c := l.LengthRaw(searchers)
 		for i := 1; i <= c; i++ {
@@ -119,12 +119,12 @@ func Open(l *lua.State) int {
 			l.PushIndex(1)
 			l.Insert(-1) // This inserts the module name just below the top item (not counting the item it pops off to insert)
 			l.Call(2, 1)
-			
+
 			l.Push("_LOADED")
 			l.GetTableRaw(lua.RegistryIndex)
 			l.PushIndex(1)
 			l.GetTableRaw(-2)
-			
+
 			// If package.loaded[modname] == nil && <return value> == nil
 			if l.IsNil(-1) && l.IsNil(-3) {
 				// Set package.loaded[modname] to true and return true
@@ -135,7 +135,7 @@ func Open(l *lua.State) int {
 				l.Push(true)
 				return 1
 			}
-			
+
 			// Else set package.loaded[modname] to <return value> and return <return value>
 			l.Pop(1)
 			l.PushIndex(1)
@@ -144,14 +144,14 @@ func Open(l *lua.State) int {
 			l.Pop(1)
 			return 1
 		}
-		
+
 		l.Push("Could not load: " + l.ToString(1) + msg)
 		l.Error()
 		return 0
 	}, -2)
 	l.SetTableRaw(lua.GlobalsIndex)
 	l.Pop(1) // Pop the reference to package.searchers that we got earlier.
-	
+
 	// Sanity check
 	if l.AbsIndex(-1) != tidx {
 		panic("FIXME!")

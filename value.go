@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -302,18 +302,18 @@ func (l *State) getTable(t, k value) value {
 	if ok && tbl.Exists(k) {
 		return tbl.GetRaw(k)
 	}
-	
+
 	meth := l.hasMetaMethod(t, "__index")
 	if meth != nil {
 		if tbl, ok := meth.(*table); ok {
 			return l.getTable(tbl, k)
 		}
-		
+
 		f, ok := meth.(*function)
 		if !ok {
 			luautil.Raise("Meta method __index is not a table or function.", luautil.ErrTypGenRuntime)
 		}
-		
+
 		l.Push(f)
 		l.Push(t)
 		l.Push(k)
@@ -322,7 +322,7 @@ func (l *State) getTable(t, k value) value {
 		l.Pop(1)
 		return rtn
 	}
-	
+
 	if ok {
 		return tbl.GetRaw(k)
 	}
@@ -336,19 +336,19 @@ func (l *State) setTable(t, k, v value) {
 		tbl.SetRaw(k, v)
 		return
 	}
-	
+
 	meth := l.hasMetaMethod(t, "__newindex")
 	if meth != nil {
 		if t, ok := meth.(*table); ok {
 			t.SetRaw(k, v)
 			return
 		}
-		
+
 		f, ok := meth.(*function)
 		if !ok {
 			luautil.Raise("Meta method __newindex is not a table or function.", luautil.ErrTypGenRuntime)
 		}
-		
+
 		l.Push(f)
 		l.Push(t)
 		l.Push(k)
@@ -386,20 +386,20 @@ func (l *State) tryMathMeta(op opCode, a, b value) value {
 		luautil.Raise("Operator passed to tryMathMeta out of range.", luautil.ErrTypMajorInternal)
 	}
 	name := mathMeta[op-OpAdd]
-	
+
 	meta := l.hasMetaMethod(a, name)
 	if meta == nil {
 		meta = l.hasMetaMethod(b, name)
 		if meta == nil {
-			luautil.Raise("Neither operand has a " + name + " meta method.", luautil.ErrTypGenRuntime)
+			luautil.Raise("Neither operand has a "+name+" meta method.", luautil.ErrTypGenRuntime)
 		}
 	}
-	
+
 	f, ok := meta.(*function)
 	if !ok {
-		luautil.Raise("Meta method " + name + " is not a function.", luautil.ErrTypGenRuntime)
+		luautil.Raise("Meta method "+name+" is not a function.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	l.Push(f)
 	l.Push(a)
 	l.Push(b)
@@ -575,7 +575,7 @@ func (l *State) tryCmpMeta(op opCode, a, b value) bool {
 		luautil.Raise("Operator passed to tryCmpMeta out of range.", luautil.ErrTypMajorInternal)
 	}
 	name := cmpMeta[op-OpEqual]
-	
+
 	var meta value
 	tryLEHack := false
 try:
@@ -591,11 +591,11 @@ try:
 			if name == "__eq" {
 				return a == b // Fall back to raw equality.
 			}
-			
+
 			return false
 		}
 	}
-	
+
 	l.Push(meta)
 	if tryLEHack {
 		l.Push(a)
@@ -618,7 +618,7 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 	if t != typeOf(b) {
 		return false
 	}
-	
+
 	switch op {
 	case OpEqual:
 		switch t {
@@ -630,27 +630,27 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 			if oka && okb {
 				return ia == ib
 			}
-	
+
 			fa, oka := a.(float64)
 			fb, okb := b.(float64)
 			if oka && okb {
 				return fa == fb
 			}
-			
+
 			// Weird, but this is what the reference implementation does.
 			return toInt(a) == toInt(b)
-			
+
 		case TypString:
 			return a.(string) == b.(string)
 		case TypBool:
 			return a.(bool) == b.(bool)
 		}
-		
+
 		if raw {
 			return a == b
 		}
 		return l.tryCmpMeta(op, a, b)
-	
+
 	case OpLessThan:
 		switch t {
 		case TypNumber:
@@ -659,16 +659,16 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 			if oka && okb {
 				return ia < ib
 			}
-	
+
 			fa, oka := a.(float64)
 			fb, okb := b.(float64)
 			if oka && okb {
 				return fa < fb
 			}
-			
+
 			// Weird, but this is what the reference implementation does.
 			return toInt(a) < toInt(b)
-			
+
 		case TypString:
 			return a.(string) < b.(string) // Fix me, should be locale sensitive, not lexical
 		}
@@ -677,7 +677,7 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 			return false
 		}
 		return l.tryCmpMeta(op, a, b)
-	
+
 	case OpLessOrEqual:
 		switch t {
 		case TypNumber:
@@ -686,16 +686,16 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 			if oka && okb {
 				return ia <= ib
 			}
-	
+
 			fa, oka := a.(float64)
 			fb, okb := b.(float64)
 			if oka && okb {
 				return fa <= fb
 			}
-			
+
 			// Weird, but this is what the reference implementation does.
 			return toInt(a) <= toInt(b)
-			
+
 		case TypString:
 			return a.(string) <= b.(string) // Fix me, should be locale sensitive, not lexical
 		}

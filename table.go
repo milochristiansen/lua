@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -37,11 +37,11 @@ type table struct {
 	meta *table
 	l    *State
 
-	array      []value
-	length     int // The stored sequence length, negative values signify that the length needs to be recalculated.
+	array  []value
+	length int // The stored sequence length, negative values signify that the length needs to be recalculated.
 
 	hash map[value]value
-	
+
 	// For use with next
 	iorder []value
 	ikeys  map[value]int
@@ -50,7 +50,7 @@ type table struct {
 func newTable(l *State, as, hs int) *table {
 	t := new(table)
 	t.l = l
-	
+
 	if as > 0 {
 		t.array = make([]value, as)
 	}
@@ -59,7 +59,7 @@ func newTable(l *State, as, hs int) *table {
 	} else {
 		t.hash = make(map[value]value)
 	}
-	
+
 	return t
 }
 
@@ -97,7 +97,7 @@ func (tbl *table) maybeExtend(key int) bool {
 
 	// TODO: Is there a better way to handle this kind of situation?
 	// The current algorithm is kinda slow, is there some way to cut down on hash lookups?
-	
+
 	occupancy := 0
 	for _, v := range tbl.array {
 		if v != nil {
@@ -119,7 +119,7 @@ func (tbl *table) maybeExtend(key int) bool {
 			}
 		}
 	}
-	
+
 	if occupancy == 0 && key == 0 {
 		tbl.array = make([]value, 1, 32)
 		return true
@@ -145,7 +145,7 @@ func (tbl *table) maybeExtend(key int) bool {
 			tbl.extend(o)
 			return true
 		}
-		
+
 		occupancy *= 2
 		if occupancy > key {
 			tbl.extend(occupancy)
@@ -176,7 +176,7 @@ func (tbl *table) setInt(k int, v value) {
 	}
 
 	// Decide if the stored length was invalidated and fix it if possible.
-	
+
 	// No need to do anything if the value was stored/removed from the hash part.
 	// We don't need to worry about values added to the hash when the array portion is full, as this is impossible.
 	if hash {
@@ -360,7 +360,7 @@ func (tbl *table) Next(key value) (value, value) {
 			tbl.ikeys[last] = -1
 		}
 	}
-	
+
 	// Try the key as a hash index.
 	// We need a loop here to handle the case where a key was removed while iterating.
 	idx, ok := 0, true
@@ -379,7 +379,7 @@ func (tbl *table) Next(key value) (value, value) {
 	if idx == -1 || key == nil {
 		key = int64(0)
 	}
-	
+
 	// Not in hash or all hash keys used, try to use the key as an array index.
 	i, ok := tryInt(key)
 	if ok {
@@ -393,7 +393,7 @@ func (tbl *table) Next(key value) (value, value) {
 			i++
 		}
 	}
-	
+
 	// Key did not exist when iteration started or is the last key.
 	tbl.ikeys = nil
 	tbl.iorder = nil
@@ -403,42 +403,42 @@ func (tbl *table) Next(key value) (value, value) {
 // The real table iterator
 // This one is reentrant.
 type tableIter struct {
-	kill chan bool
+	kill   chan bool
 	result chan []value
-	
+
 	data *table
 }
 
 func newTableIter(d *table) *tableIter {
 	kill := make(chan bool)
 	result := make(chan []value)
-	
+
 	i := &tableIter{
-		kill: kill,
+		kill:   kill,
 		result: result,
-		data: d,
+		data:   d,
 	}
-	
+
 	// So long as this function contains no references to i it will die when i is finalized (references here
 	// will keep i from ever being finalized unless you visit every key).
 	// d is not a problem, as i will always be collected first.
-	go func(){
+	go func() {
 		for k, v := range d.array {
 			if v == nil {
 				continue
 			}
-			
+
 			select {
-			case <- kill:
+			case <-kill:
 				close(result) // Just in case...
 				return
-			case result <- []value{k+TableIndexOffset, v}:
+			case result <- []value{k + TableIndexOffset, v}:
 			}
 		}
-		
+
 		for k, v := range d.hash {
 			select {
-			case <- kill:
+			case <-kill:
 				close(result) // Just in case...
 				return
 			case result <- []value{k, v}:
@@ -446,16 +446,16 @@ func newTableIter(d *table) *tableIter {
 		}
 		close(result) // Needed so Next will not block after the last key is visited.
 	}()
-	
-	runtime.SetFinalizer(i, func(i *tableIter){
+
+	runtime.SetFinalizer(i, func(i *tableIter) {
 		i.kill <- true
 	})
-	
+
 	return i
 }
 
 func (i *tableIter) Next() (value, value) {
-	k, ok := <- i.result
+	k, ok := <-i.result
 	if !ok {
 		return nil, nil
 	}

@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -33,7 +33,7 @@ func ConvNumber(s string, integer, float bool) (valid, iok bool, i int64, f floa
 	if len(s) == 0 {
 		return false, false, 0, 0.0
 	}
-	
+
 	if integer {
 		if i, ok := convInt(s); ok {
 			return true, true, i, 0.0
@@ -62,32 +62,32 @@ func convInt(s string) (int64, bool) {
 	a := int64(0)
 	i := 0
 	empty := true
-	
+
 	neg := false
-	if len(s) >= i + 1 && s[i] == '-' {
+	if len(s) >= i+1 && s[i] == '-' {
 		neg = true
 		i += 1
 	}
-	
+
 	hex := false
-	if len(s) >= i + 2 && s[i] == '0' && (s[i + 1] == 'x' || s[i + 1] == 'X') {
+	if len(s) >= i+2 && s[i] == '0' && (s[i+1] == 'x' || s[i+1] == 'X') {
 		i += 2
 		hex = true
 	}
-	
+
 	for ; i < len(s); i++ {
 		if s[i] >= '0' && s[i] <= '9' || hex && (s[i] >= 'a' && s[i] <= 'f' || s[i] >= 'A' && s[i] <= 'F') {
 			if hex {
-				a = a * 16 + int64(cton(s[i]))
+				a = a*16 + int64(cton(s[i]))
 			} else {
-				a = a * 10 + int64(cton(s[i]))
+				a = a*10 + int64(cton(s[i]))
 			}
 			empty = false
 			continue
 		}
 		return 0, false // Invalid character
 	}
-	
+
 	if empty {
 		return 0, false
 	}
@@ -102,7 +102,7 @@ func convFloat(s string) (float64, bool) {
 	if len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
 		Raise("Sadly hexadecimal floating point literals are currently not supported, use decimal literals", ErrTypGenLexer)
 	}
-	
+
 	f, err := strconv.ParseFloat(s, 64)
 	return f, err == nil
 }
@@ -115,19 +115,19 @@ func convFloatBroken(s string) (float64, bool) {
 	i := 0
 	empty := true
 	dot := false
-	
+
 	neg := false
 	if len(s) >= 1 && s[0] == '-' {
 		neg = true
 		i += 1
 	}
-	
+
 	hex := false
-	if len(s) > i + 2 && s[i+1] == '0' && (s[i+2] == 'x' || s[i+2] == 'X') {
+	if len(s) > i+2 && s[i+1] == '0' && (s[i+2] == 'x' || s[i+2] == 'X') {
 		i += 2
 		hex = true
 	}
-	
+
 	for ; i < len(s); i++ {
 		if s[i] == '.' {
 			if dot {
@@ -136,12 +136,12 @@ func convFloatBroken(s string) (float64, bool) {
 			dot = true
 			continue
 		}
-		
+
 		if s[i] >= '0' && s[i] <= '9' || hex && (s[i] >= 'a' && s[i] <= 'f' || s[i] >= 'A' && s[i] <= 'F') {
 			if hex {
-				a = a * 16 + float64(cton(s[i]))
+				a = a*16 + float64(cton(s[i]))
 			} else {
-				a = a * 10 + float64(cton(s[i]))
+				a = a*10 + float64(cton(s[i]))
 			}
 			empty = false
 			if dot {
@@ -149,39 +149,39 @@ func convFloatBroken(s string) (float64, bool) {
 			}
 			continue
 		}
-		
+
 		if !hex && (s[i] == 'e' || s[i] == 'E') || hex && (s[i] == 'p' || s[i] == 'P') {
 			break
 		}
-		
+
 		return 0, false // Invalid character
 	}
 	if empty {
 		return 0, false
 	}
 	e *= 4
-	if i < len(s) && (!hex && (s[i] == 'e' || s[i] == 'E') || hex && (s[i] == 'p' || s[i] == 'P'))  {
+	if i < len(s) && (!hex && (s[i] == 'e' || s[i] == 'E') || hex && (s[i] == 'p' || s[i] == 'P')) {
 		ea := 0
 		empty = false
-		
+
 		eneg := false
-		if len(s) >= i + 1 && s[i+1] == '-' {
+		if len(s) >= i+1 && s[i+1] == '-' {
 			eneg = true
 			i += 1
 		}
-		
+
 		for ; i < len(s); i++ {
 			if s[i] >= '0' && s[i] <= '9' {
-				ea = ea * 10 + int(cton(s[i]))
+				ea = ea*10 + int(cton(s[i]))
 			}
-			
+
 			return 0, false // Invalid character
 		}
-		
+
 		if empty {
 			return 0, false
 		}
-		
+
 		if eneg {
 			ea = -ea
 		}
@@ -194,6 +194,6 @@ func convFloatBroken(s string) (float64, bool) {
 	if neg {
 		a = -a
 	}
-	
+
 	return math.Ldexp(a, e), true
 }

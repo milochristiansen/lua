@@ -15,6 +15,10 @@ state that it can panic or "raise an error" it will only do so if a critical int
 (AKA there is a bug in the code somewhere). These errors will have a special prefix prepended onto the error message
 stating that this error indicates an internal VM bug. If you ever see such an error I want to know about it ASAP.
 
+That said, if an API function *can* "raise an error" it can and will panic if something goes wrong. This is not a
+problem inside a native function (as the VM is prepared for this), but if you need to call these functions outside of
+code to be run by the VM you may want to use Protect or Recover to properly catch these errors.
+ 
 The VM itself does not provide any Lua functions, the standard library is provided entirely by other packages. This
 means that the standard library never does anything that your own code cannot do (there is no "private API" that is used
 by the standard library). 
@@ -156,20 +160,94 @@ The following *core language* features are not supported:
 * I do not currently support finalizers. It would probably be possible to support them, but it would be a lot of work
   for a feature that is of limited use (I have only ever needed to use a finalizer once, ironically in this library).
   If you have a compelling reason why you need finalizers I could probably add them...
+* The reference compiler allows you to use `goto` to jump to a label at the end of a block ignoring any variables in said
+  block. For example:
+  
+		do
+			goto x
+			local a
+			::x::
+		end
+  
+  My compiler does not currently allow this, treating it as a jump into the scope of a local variable. I consider this a
+  bug, and will probably fix it sooner or later...
+
+  Note that AFAIK there is nothing in the Lua spec that implies this is allowed, but it seems like a logical thing to
+  permit so I suppose I'll have to fix it, *sigh*.
 
 
-Errors:
+TODO:
 ------------------------------------------------------------------------------------------------------------------------
 
-Error messages can be summed up with one word right now: Terrible.
+Stuff that should be done sometime. Feel free to help out :)
 
-The code that generates the stack traces is very simple and doesn't try very hard to produce accurate results. Many error
-messages lack details about the exact problem. Generally it isn't too hard to track the problem down, but I really need
-to rework the error handler...
+The list is (roughly) in priority order.
+
+* Write more tests for the compiler and VM.
+* (supermeta) Allow using byte slices as strings and vice-versa. Maybe attach a method to byte slices that allows conversion
+  back and forth? (this would probably be fairly easy to do)
+* Write better stack traces for errors.
+* Improve compilation of `and` and `or`.
+* Fix jumping to a label at the end of a block.
+* (vendor/sliceutil) Replace that terrible hack I use for a stack library with proper stack types.
+* (supermeta) Look into allowing scripts to call functions/methods. It's certainly possible, but possibly difficult
+  (possible not as difficult as I think).
 
 
 Changes:
 ------------------------------------------------------------------------------------------------------------------------
+
+A note on versions:
+
+For this project I more-or-less follow semantic versioning, so I try to maintain backwards compatibility across point
+releases. That said I feel free to break minor things in the name of bugfixes. Read the changelog before upgrading!
+
+I don't use a normal version control system for development, so I tend to change whatever I feel like changing with no
+regard to "commit noise". This means that a new release will often have changes in files I did not substantially modify
+(generally I tweaked a comment or some such). To make it easier for other people to separate actual changes from the
+noise, each change listed here will list the files I modified for that change.
+
+(please don't bug me about using version control, I *do* use version control. I just use a custom type designed for
+single person teams where the only important use is rolling back bad changes and such)
+
+* * *
+
+1.1.0
+
+I was a little bored recently, so I threw together a generic metatable API. It was a quick little project, based on
+earlier work for one of my many toy languages. This new API is kinda cool, but it in no way replaces proper metatables!
+Basically it is intended for quick projects and temporarily exposing data to scripts. It was fun to write, and so even
+if no one uses it, it has served its purpose :P
+
+I really should have been working on more script tests, but this was more fun... Anyway, I have no doubt responsibility
+will reassert itself soon...
+
+Anyway, I also added two new convenience methods for table iteration, as well as some minor changes to the old one (you
+can still use it, but it is now a thin wrapper over one of the new functions, so you shouldn't).
+
+* Ran all code through `go fmt`. I often forget to do this, but I recently switched to a new editor that formats files
+  automatically whenever they are saved. Anyway, everything is formatted now. (almost every file in minor ways)
+* Added `Protect` and `Recover`, simple error handlers for native code. They are to be used when calling native APIs
+  outside of code otherwise protected (such as by a call to PCall). `Recover` is the old handler from `PCall`, wrapped
+  so it can be used by itself. `Protect` simply wraps `Recover` so it is easier to use. (api.go)
+* Added `ForEachRaw`, basically `ForEachInTable`, but the passed in function returns a boolean specifying if you want to
+  break out of the loop early. In other news `ForEachInTable` is now depreciated. (api.go)
+* Added `ForEach`, a version of `ForEachRaw` that respects the `__pairs` metamethod. `ForEachRaw` uses the table iterator
+  directly and does much less stack manipulation, so it is probably a little faster. (api.go)
+* Added a new sub-package: `supermeta` adds "generic" metatables for just about any Go type. For obvious reasons this
+  makes heavy use of reflection, so it is generally much faster to write your own metatables, that said this is really
+  nice for quickly exposing native data to scripts. From the user's perspective you just call `supermeta.New(l, &object)`
+  and `object` is suddenly a script value on the top of `l`'s stack. Arrays, slices, maps, structs, etc should all work
+  just fine. Note that this is very new, and as of yet has received little real-world testing! (supermeta/supermeta.go,
+  supermeta/tables.go)
+* Added a new sub-package: `testhelp` contains a few test helper functions I find useful when writing tests that interact
+  with the VM. Better to have all this stuff in one place rather than copied and pasted all over... (testhelp/testhelp.go)
+* Modified the script tests in the base package to use the helper functions in `testhelp` rather than their own copies.
+  The API tests still have their own copies of some of the functions, as they need to be in the base package so they can
+  access internal APIs (stupid circular imports). (script_test.go)
+* Clarified what API functions may panic, I think I got them all... (api.go) 
+
+* * *
 
 1.0.2
 

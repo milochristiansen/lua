@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -28,9 +28,9 @@ import "github.com/milochristiansen/lua/luautil"
 // isolated "segment". Once you add a new callFrame you cannot push and pop values in the previous
 // callFrame(s) segments, but you can modify them by index.
 type stack struct {
-	data     []value
-	frames   []*callFrame
-	
+	data   []value
+	frames []*callFrame
+
 	// List of all unclosed upvalues (which by definition are on the stack somewhere).
 	// This list is ordered higher indexes to lower indexes by requirement and construction.
 	unclosed *upValue
@@ -41,12 +41,12 @@ func newStack() *stack {
 		data:   make([]value, 0, 1024),
 		frames: make([]*callFrame, 1, 64),
 	}
-	
+
 	stk.frames[0] = &callFrame{
-		stk: stk,
+		stk:  stk,
 		base: -1,
 	}
-	
+
 	return stk
 }
 
@@ -58,7 +58,7 @@ func (stk *stack) bounds(seg int) (segC int, segN int) {
 	if len(stk.frames) == 0 {
 		luautil.Raise("No frames on the stack.", luautil.ErrTypMajorInternal)
 	}
-	
+
 	if seg < 0 {
 		// Relative index.
 		seg = len(stk.frames) + seg
@@ -73,7 +73,7 @@ func (stk *stack) bounds(seg int) (segC int, segN int) {
 	}
 
 	frame := stk.frames[seg]
-	
+
 	// segC is easy.
 	segC = frame.base
 	if frame.holdArgs {
@@ -97,10 +97,10 @@ func (stk *stack) topBounds() (segC int, segN int) {
 	if len(stk.frames) == 0 {
 		return -1, -1
 	}
-	
+
 	seg := len(stk.frames) - 1
 	frame := stk.frames[seg]
-	
+
 	// segC is easy.
 	segC = frame.base
 	if frame.holdArgs {
@@ -124,8 +124,8 @@ func (stk *stack) ensure(i int) {
 		return
 	}
 	needed := i - ssize
-	if ssize + needed <= cap(stk.data) {
-		stk.data = stk.data[:ssize + needed + 1]
+	if ssize+needed <= cap(stk.data) {
+		stk.data = stk.data[:ssize+needed+1]
 	} else {
 		stk.data = append(stk.data, make([]value, needed)...)
 	}
@@ -153,9 +153,9 @@ func (stk *stack) absIndex(index int) int {
 	segC, segN := stk.topBounds()
 
 	if index >= 0 {
-		return segC+index+1
+		return segC + index + 1
 	}
-	return segN+index+1
+	return segN + index + 1
 }
 
 // TopIndex returns the index of the top item in the current stack frame.
@@ -176,7 +176,7 @@ func (stk *stack) SetTop(t int) {
 	if r <= 0 {
 		return
 	}
-	
+
 	stk.Pop(r)
 }
 
@@ -204,12 +204,12 @@ func (stk *stack) Get(index int) value {
 // Positive indexes only!
 func (stk *stack) GetArgs(index int) value {
 	segC, _ := stk.topBounds()
-	
+
 	frame := stk.cFrame()
 	if !frame.holdArgs || index >= frame.nArgs {
 		return nil
 	}
-	
+
 	return stk.data[segC-frame.nArgs+index+1]
 }
 
@@ -245,9 +245,9 @@ func (stk *stack) GetAbs(index int) value {
 // If the given index is absolute and outside of the frame bounds then the frame is extended.
 func (stk *stack) Set(index int, val value) {
 	segC, segN := stk.topBounds()
-	
+
 	if index >= 0 {
-		stk.ensure(segC+index+1)
+		stk.ensure(segC + index + 1)
 		stk.data[segC+index+1] = val
 		return
 	}
@@ -263,9 +263,9 @@ func (stk *stack) Set(index int, val value) {
 // If the given index is absolute and outside of the frame bounds then the frame is extended.
 func (stk *stack) SetInFrame(frame, index int, val value) {
 	segC, segN := stk.bounds(frame)
-	
+
 	if index >= 0 {
-		stk.ensure(segC+index+1)
+		stk.ensure(segC + index + 1)
 		stk.data[segC+index+1] = val
 		return
 	}
@@ -294,14 +294,14 @@ func (stk *stack) SetAbs(index int, val value) {
 // Pop removes n values from the top of the current segment.
 func (stk *stack) Pop(n int) {
 	segC, segN := stk.topBounds()
-	
+
 	for i := 0; i < n; i++ {
 		if segN-i <= segC {
 			break
 		}
 		stk.data[segN-i] = nil
 	}
-	
+
 	if (segN+1)-n <= segC {
 		stk.data = stk.data[:segC+1]
 		return
@@ -322,20 +322,20 @@ func (stk *stack) Push(val value) {
 // Insert the given item at the given index, shifting the other stack items up to allow it to fit.
 func (stk *stack) Insert(i int, v value) {
 	segC, segN := stk.topBounds()
-	
+
 	if i < 0 {
-		i = segN+i+1
+		i = segN + i + 1
 	} else {
-		i = segC+i+1
+		i = segC + i + 1
 	}
-	
+
 	if i > segN || i <= segC {
 		luautil.Raise("Index out of range for Insert.", luautil.ErrTypGenRuntime)
 	}
-	
+
 	stk.data = append(stk.data, nil)
 	segN++
-	
+
 	for k := segN; k > i; k-- {
 		stk.data[k] = stk.data[k-1]
 	}
@@ -354,16 +354,16 @@ func (stk *stack) AddFrame(fn *function, fi, args, rtns int) {
 	if len(stk.frames) > 0 {
 		pbase = stk.cFrame().base
 	}
-	
+
 	// Remove any items that are above the last argument
 	// It is rare, but possible, to have such values.
 	stk.SetTop(fi + args)
-	
+
 	base := len(stk.data) - 1 - args
 	if base < pbase {
 		luautil.Raise("Invalid argument count for AddFrame.", luautil.ErrTypMajorInternal)
 	}
-	
+
 	frame := &callFrame{
 		fn:  fn,
 		stk: stk,
@@ -371,7 +371,7 @@ func (stk *stack) AddFrame(fn *function, fi, args, rtns int) {
 		base: base,
 
 		holdArgs: fn.native == nil && fn.proto.isVarArg == 1,
-		
+
 		nArgs:   args,
 		nRet:    rtns,
 		retBase: -1,
@@ -382,7 +382,7 @@ func (stk *stack) AddFrame(fn *function, fi, args, rtns int) {
 	//for i := base + 1; i < len(stk.data); i++ {
 	//	println(" ", toString(stk.data[i]))
 	//}
-	
+
 	stk.frames = append(stk.frames, frame)
 }
 
@@ -393,23 +393,23 @@ func (stk *stack) TailFrame(fn *function, fi, args int) {
 	}
 	frame := stk.cFrame()
 	segC, segN := stk.topBounds()
-	
+
 	// Calculate the "real segC" accounting for any protected arguments
 	rsegC := segC
 	if frame.holdArgs {
 		rsegC -= frame.nArgs
 	}
-	
+
 	frame.pc = 0
 	frame.fn = fn
-	
+
 	frame.holdArgs = fn.native == nil && fn.proto.isVarArg == 1
-	
+
 	frame.nArgs = args
 	frame.nRet = -1
 	frame.retBase = -1
 	// frame.retTo = fi // No touch! This is the index in the PREVIOUS FRAME, not the current frame!
-	
+
 	// shortcut
 	if args <= 0 {
 		for i := rsegC + 1; i <= segN; i++ {
@@ -418,10 +418,10 @@ func (stk *stack) TailFrame(fn *function, fi, args int) {
 		stk.data = stk.data[:rsegC+1]
 		return
 	}
-	
+
 	// Shift the arguments to the bottom of the frame
 	for i := 0; i < args; i++ {
-		stk.data[rsegC + 1 + i] = stk.data[segC + 1 + fi + 1 + i]
+		stk.data[rsegC+1+i] = stk.data[segC+1+fi+1+i]
 	}
 	for i := rsegC + 1 + args; i < len(stk.data); i++ {
 		stk.data[i] = nil
@@ -436,25 +436,25 @@ func (stk *stack) ReturnFrame() {
 		luautil.Raise("Not enough frames on the stack.", luautil.ErrTypMajorInternal)
 	}
 	frame := stk.cFrame()
-	
+
 	segC, segN := stk.bounds(-1)
 	psegC, _ := stk.bounds(-2)
-	
+
 	if frame.retBase < 0 {
 		luautil.Raise("Frame return with invalid (missing) return data.", luautil.ErrTypMajorInternal)
 	}
-	
+
 	//println("Remove Frame:")
 	//for i := frame.base + 1; i < len(stk.data); i++ {
 	//	println(" ", toString(stk.data[i]))
 	//}
-	
+
 	// Amazingly we don't need any special correction for frame.holdArgs
-	
-	for i := 0; i < stk.TopIndex() + 1 - frame.retBase; i++ {
+
+	for i := 0; i < stk.TopIndex()+1-frame.retBase; i++ {
 		stk.data[psegC+1+frame.retTo+i] = stk.data[segC+1+i+frame.retBase]
 	}
-	
+
 	retC := frame.retC // The number of items that were returned
 	retE := frame.nRet // The number of return items required by the caller
 	if retE < 0 {
@@ -462,33 +462,33 @@ func (stk *stack) ReturnFrame() {
 	} else if retE < retC {
 		retC = retE
 	}
-	
+
 	// Wipe everything but the return values
-	for i := psegC+1+frame.retTo+retC; i <= segN; i++ {
+	for i := psegC + 1 + frame.retTo + retC; i <= segN; i++ {
 		stk.data[i] = nil
 	}
 	stk.data = stk.data[:psegC+1+frame.retTo+retC]
-	
+
 	// Now correct for retC < retE
 	for retC < retE {
 		stk.data = append(stk.data, nil)
 		retC++
 	}
-	
+
 	stk.frames = stk.frames[:len(stk.frames)-1]
 }
 
 func (stk *stack) DropFrame() {
 	segC, segN := stk.topBounds()
-	
+
 	if frame := stk.cFrame(); frame.holdArgs {
 		segC -= frame.nArgs
 	}
-	
+
 	for i := segC + 1; i <= segN; i++ {
 		stk.data[i] = nil
 	}
-	
+
 	stk.data = stk.data[:segC+1]
 	stk.frames = stk.frames[:len(stk.frames)-1]
 }

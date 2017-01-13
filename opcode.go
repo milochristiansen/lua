@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -260,68 +260,68 @@ type opType struct {
 
 var opModes = []opType{
 	//     a, ax, b, bx, sbx, c      opCode
-	opType{1, 0,  1, 0,  0,   0}, // opMove
-	opType{1, 0,  0, 1,  0,   0}, // opLoadK
-	opType{1, 0,  0, 0,  0,   0}, // opLoadKEx
-	opType{1, 0,  1, 0,  0,   1}, // opLoadBool
-	opType{1, 0,  1, 0,  0,   0}, // opLoadNil
-	
-	opType{1, 0,  1, 0,  0,   0}, // opGetUpValue
-	opType{1, 0,  1, 0,  0,   2}, // opGetTableUp
-	opType{1, 0,  1, 0,  0,   2}, // opGetTable
-	
-	opType{1, 0,  2, 0,  0,   2}, // opSetTableUp
-	opType{1, 0,  1, 0,  0,   0}, // opSetUpValue
-	opType{1, 0,  2, 0,  0,   2}, // opSetTable
-	
-	opType{1, 0,  3, 0,  0,   3}, // opNewTable
-	
-	opType{1, 0,  1, 0,  0,   2}, // opSelf
-	
-	opType{1, 0,  2, 0,  0,   2}, // opAdd
-	opType{1, 0,  2, 0,  0,   2}, // opSub
-	opType{1, 0,  2, 0,  0,   2}, // opMul
-	opType{1, 0,  2, 0,  0,   2}, // opMod
-	opType{1, 0,  2, 0,  0,   2}, // opPow
-	opType{1, 0,  2, 0,  0,   2}, // opDiv
-	opType{1, 0,  2, 0,  0,   2}, // opIDiv
-	opType{1, 0,  2, 0,  0,   2}, // opBinAND
-	opType{1, 0,  2, 0,  0,   2}, // opBinOR
-	opType{1, 0,  2, 0,  0,   2}, // opBinXOR
-	opType{1, 0,  2, 0,  0,   2}, // opBinShiftL
-	opType{1, 0,  2, 0,  0,   2}, // opBinShiftR
-	opType{1, 0,  2, 0,  0,   0}, // opUMinus
-	opType{1, 0,  2, 0,  0,   0}, // opBinNot
-	opType{1, 0,  2, 0,  0,   0}, // opNot
-	opType{1, 0,  1, 0,  0,   0}, // opLength
-	
-	opType{1, 0,  1, 0,  0,   1}, // opConcat
-	
-	opType{1, 0,  0, 0,  1,   0}, // opJump
-	opType{1, 0,  2, 0,  0,   2}, // opEqual
-	opType{1, 0,  2, 0,  0,   2}, // opLessThan
-	opType{1, 0,  2, 0,  0,   2}, // opLessOrEqual
-	
-	opType{1, 0,  0, 0,  0,   1}, // opTest
-	opType{1, 0,  1, 0,  0,   1}, // opTestSet
-	
-	opType{1, 0,  1, 0,  0,   1}, // opCall
-	opType{1, 0,  1, 0,  0,   0}, // opTailCall
-	opType{1, 0,  1, 0,  0,   0}, // opReturn
-	
-	opType{1, 0,  0, 0,  1,   0}, // opForLoop
-	opType{1, 0,  0, 0,  1,   0}, // opForPrep
-	
-	opType{1, 0,  0, 0,  0,   1}, // opTForCall
-	opType{1, 0,  0, 0,  1,   0}, // opTForLoop
-	
-	opType{1, 0,  1, 0,  0,   1}, // opSetList
-	
-	opType{1, 0,  0, 1,  0,   0}, // opClosure
-	
-	opType{1, 0,  1, 0,  0,   0}, // opVarArg
-	
-	opType{0, 1,  0, 0,  0,   0}, // opExtraArg
+	opType{1, 0, 1, 0, 0, 0}, // opMove
+	opType{1, 0, 0, 1, 0, 0}, // opLoadK
+	opType{1, 0, 0, 0, 0, 0}, // opLoadKEx
+	opType{1, 0, 1, 0, 0, 1}, // opLoadBool
+	opType{1, 0, 1, 0, 0, 0}, // opLoadNil
+
+	opType{1, 0, 1, 0, 0, 0}, // opGetUpValue
+	opType{1, 0, 1, 0, 0, 2}, // opGetTableUp
+	opType{1, 0, 1, 0, 0, 2}, // opGetTable
+
+	opType{1, 0, 2, 0, 0, 2}, // opSetTableUp
+	opType{1, 0, 1, 0, 0, 0}, // opSetUpValue
+	opType{1, 0, 2, 0, 0, 2}, // opSetTable
+
+	opType{1, 0, 3, 0, 0, 3}, // opNewTable
+
+	opType{1, 0, 1, 0, 0, 2}, // opSelf
+
+	opType{1, 0, 2, 0, 0, 2}, // opAdd
+	opType{1, 0, 2, 0, 0, 2}, // opSub
+	opType{1, 0, 2, 0, 0, 2}, // opMul
+	opType{1, 0, 2, 0, 0, 2}, // opMod
+	opType{1, 0, 2, 0, 0, 2}, // opPow
+	opType{1, 0, 2, 0, 0, 2}, // opDiv
+	opType{1, 0, 2, 0, 0, 2}, // opIDiv
+	opType{1, 0, 2, 0, 0, 2}, // opBinAND
+	opType{1, 0, 2, 0, 0, 2}, // opBinOR
+	opType{1, 0, 2, 0, 0, 2}, // opBinXOR
+	opType{1, 0, 2, 0, 0, 2}, // opBinShiftL
+	opType{1, 0, 2, 0, 0, 2}, // opBinShiftR
+	opType{1, 0, 2, 0, 0, 0}, // opUMinus
+	opType{1, 0, 2, 0, 0, 0}, // opBinNot
+	opType{1, 0, 2, 0, 0, 0}, // opNot
+	opType{1, 0, 1, 0, 0, 0}, // opLength
+
+	opType{1, 0, 1, 0, 0, 1}, // opConcat
+
+	opType{1, 0, 0, 0, 1, 0}, // opJump
+	opType{1, 0, 2, 0, 0, 2}, // opEqual
+	opType{1, 0, 2, 0, 0, 2}, // opLessThan
+	opType{1, 0, 2, 0, 0, 2}, // opLessOrEqual
+
+	opType{1, 0, 0, 0, 0, 1}, // opTest
+	opType{1, 0, 1, 0, 0, 1}, // opTestSet
+
+	opType{1, 0, 1, 0, 0, 1}, // opCall
+	opType{1, 0, 1, 0, 0, 0}, // opTailCall
+	opType{1, 0, 1, 0, 0, 0}, // opReturn
+
+	opType{1, 0, 0, 0, 1, 0}, // opForLoop
+	opType{1, 0, 0, 0, 1, 0}, // opForPrep
+
+	opType{1, 0, 0, 0, 0, 1}, // opTForCall
+	opType{1, 0, 0, 0, 1, 0}, // opTForLoop
+
+	opType{1, 0, 1, 0, 0, 1}, // opSetList
+
+	opType{1, 0, 0, 1, 0, 0}, // opClosure
+
+	opType{1, 0, 1, 0, 0, 0}, // opVarArg
+
+	opType{0, 1, 0, 0, 0, 0}, // opExtraArg
 }
 
 func (i instruction) String() string {
@@ -334,7 +334,7 @@ func (i instruction) String() string {
 	if mode.ax != 0 {
 		out = fmt.Sprintf("%s\tAX:%d", out, i.ax())
 	}
-	
+
 	switch mode.b {
 	case 1:
 		out = fmt.Sprintf("%s\tB:%d", out, i.b())
@@ -353,7 +353,7 @@ func (i instruction) String() string {
 	if mode.sbx != 0 {
 		out = fmt.Sprintf("%s\tSBX:%d", out, i.sbx())
 	}
-	
+
 	switch mode.c {
 	case 1:
 		out = fmt.Sprintf("%s\tC:%d", out, i.c())

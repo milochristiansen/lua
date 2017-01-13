@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -29,18 +29,18 @@ func (p *parser) ident() Expr {
 	ident := exprLine(&ConstIdent{
 		Value: p.l.current.Lexeme,
 	}, p.l.current.Line)
-	
+
 	for p.l.checkLook(tknOIndex, tknDot) {
 		switch p.l.look.Type {
 		case tknOIndex: // [expr]
 			p.l.getCurrent(tknOIndex)
-			
+
 			line := p.l.current.Line
 			ident = exprLine(&TableAccessor{
 				Obj: ident,
 				Key: p.expression(),
 			}, line)
-			
+
 			p.l.getCurrent(tknCIndex)
 		case tknDot: // .ident
 			p.l.getCurrent(tknDot)
@@ -73,7 +73,7 @@ func (p *parser) funcCall(ident Expr) Expr {
 	} else {
 		f = ident
 	}
-	
+
 	args := []Expr{}
 	switch p.l.look.Type {
 	case tknOBracket:
@@ -96,11 +96,11 @@ func (p *parser) funcCall(ident Expr) Expr {
 	default:
 		p.l.getCurrent(tknOBracket, tknString, tknOParen) // For the error message
 	}
-	
+
 	return exprLine(&FuncCall{
 		Receiver: r,
 		Function: f,
-		Args: args,
+		Args:     args,
 	}, line)
 }
 
@@ -121,7 +121,7 @@ func (p *parser) funcDeclBody(hasSelf bool) Expr {
 		}
 		p.l.getCurrent(tknName)
 		params = append(params, p.l.current.Lexeme)
-		
+
 		if !p.l.checkLook(tknSeperator) {
 			break
 		}
@@ -131,23 +131,23 @@ func (p *parser) funcDeclBody(hasSelf bool) Expr {
 		}
 	}
 	p.l.getCurrent(tknCParen)
-	
+
 	// Read Block
 	block := p.block(tknEnd)
-	
+
 	return exprLine(&FuncDecl{
-		Params: params,
+		Params:     params,
 		IsVariadic: variadic,
-		Block: block,
+		Block:      block,
 	}, line)
 }
 
 func (p *parser) tblConstruct() Expr {
 	vals, keys := []Expr{}, []Expr{}
-	
+
 	p.l.getCurrent(tknOBracket)
 	line := p.l.current.Line
-	
+
 	for !p.l.checkLook(tknCBracket) {
 		switch p.l.look.Type {
 		case tknName:
@@ -167,15 +167,15 @@ func (p *parser) tblConstruct() Expr {
 			keys = append(keys, nil)
 		}
 		vals = append(vals, p.expression())
-		
+
 		if !p.l.checkLook(tknSeperator, tknUnnecessary) {
 			break
 		}
 		p.l.getCurrent(tknSeperator, tknUnnecessary)
 	}
-	
+
 	p.l.getCurrent(tknCBracket)
-	
+
 	return exprLine(&TableConstructor{
 		Keys: keys,
 		Vals: vals,
@@ -310,7 +310,7 @@ func (p *parser) valConcat() Expr {
 		// This would have the effect of treating the remainder of the expression like it was in
 		// parenthesis, which (if I am thinking correctly) is basically what right associative is...
 		//return exprLine(&Operator{Op: OpConcat, Left: l, Right: p.expression()}, line)
-		
+
 		// Apparently not, maybe this?
 		return exprLine(&Operator{Op: OpConcat, Left: l, Right: p.valConcat()}, line)
 	}
@@ -427,13 +427,13 @@ func (p *parser) suffixedValue() Expr {
 		switch p.l.look.Type {
 		case tknOIndex: // [expr]
 			p.l.getCurrent(tknOIndex)
-			
+
 			line := p.l.current.Line
 			l = exprLine(&TableAccessor{
 				Obj: l,
 				Key: p.expression(),
 			}, line)
-			
+
 			p.l.getCurrent(tknCIndex)
 		case tknDot: // .ident or .ident() or .ident:ident()
 			p.l.getCurrent(tknDot)
@@ -441,11 +441,11 @@ func (p *parser) suffixedValue() Expr {
 			p.l.getCurrent(tknName)
 			if p.l.checkLook(tknColon, tknOParen) {
 				l = p.funcCall(exprLine(&TableAccessor{
-						Obj: l,
-						Key: exprLine(&ConstString{
-							Value: p.l.current.Lexeme,
-						}, p.l.current.Line),
-					}, line))
+					Obj: l,
+					Key: exprLine(&ConstString{
+						Value: p.l.current.Lexeme,
+					}, p.l.current.Line),
+				}, line))
 			} else {
 				l = exprLine(&TableAccessor{
 					Obj: l,
@@ -471,12 +471,12 @@ func (p *parser) primaryValue() Expr {
 		}, p.l.current.Line)
 	case tknOParen:
 		p.l.getCurrent(tknOParen)
-		
+
 		line := p.l.current.Line
 		l := exprLine(&Parens{
 			Inner: p.expression(),
 		}, line)
-		
+
 		p.l.getCurrent(tknCParen)
 		return l
 	default:
@@ -484,4 +484,3 @@ func (p *parser) primaryValue() Expr {
 		panic("UNREACHABLE")
 	}
 }
-

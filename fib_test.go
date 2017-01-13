@@ -1,7 +1,7 @@
 // +build ignore
 
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -26,9 +26,9 @@ package lua
 
 import (
 	"strings"
-	
+
 	"testing"
-	
+
 	glua "github.com/yuin/gopher-lua"
 )
 
@@ -60,12 +60,12 @@ fib(50)
 
 func BenchmarkA(b *testing.B) {
 	l := NewState()
-	
+
 	err := l.LoadText(strings.NewReader(source), "fibtest.go", 0)
 	if err != nil {
 		b.Fatal(err)
 	}
-	
+
 	b.ResetTimer()
 	for i := 1; i < b.N; i++ {
 		l.PushIndex(-1)
@@ -84,7 +84,7 @@ func BenchmarkB(b *testing.B) {
 		b.Fatal(err)
 		return
 	}
-	
+
 	b.ResetTimer()
 	for i := 1; i < b.N; i++ {
 		l.Push(exe)

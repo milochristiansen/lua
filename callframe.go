@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -38,7 +38,7 @@ type callFrame struct {
 	//	3. Contains at least one use of ...
 	// In this case all stack operation must be offset by nArgs to prevent the arguments from being clobbered.
 	holdArgs bool
-	
+
 	nArgs   int
 	nRet    int // The number of items expected
 	retC    int // The actual number of items returned
@@ -90,12 +90,14 @@ func (cf *callFrame) getUp(i int) value {
 	if i < 0 || i >= len(cf.fn.up) {
 		luautil.Raise("Attempt to get out of range upvalue!", luautil.ErrTypMajorInternal)
 	}
-	
+
 	def := cf.fn.up[i]
 	if def.isLocal && !def.closed {
 		return cf.stk.GetAbs(def.absIdx)
 	}
-	if !def.closed { panic("IMPOSSIBLE") }
+	if !def.closed {
+		panic("IMPOSSIBLE")
+	}
 	return def.val
 }
 
@@ -109,7 +111,9 @@ func (cf *callFrame) setUp(i int, v value) {
 		cf.stk.SetAbs(def.absIdx, v)
 		return
 	}
-	if !def.closed { panic("IMPOSSIBLE") }
+	if !def.closed {
+		panic("IMPOSSIBLE")
+	}
 	def.val = v
 }
 
@@ -122,15 +126,17 @@ func (cf *callFrame) closeUpAbs(a int) {
 	//	x = x.next
 	//}
 	//println("> close:", a)
-	
+
 	nxt := cf.stk.unclosed
 	for nxt != nil {
-		if !nxt.isLocal || nxt.absIdx < 0 { panic("IMPOSSIBLE") } // All upvalues in actual use are in some way on the stack or already closed
+		if !nxt.isLocal || nxt.absIdx < 0 {
+			panic("IMPOSSIBLE")
+		} // All upvalues in actual use are in some way on the stack or already closed
 		if nxt.absIdx < a {
 			break // all values beyond this point are lower in the stack
 		}
 		//println(">   closing", nxt.absIdx)
-		
+
 		nxt.val = cf.stk.GetAbs(nxt.absIdx)
 		nxt.closed = true
 		nxt = nxt.next
@@ -151,7 +157,7 @@ func (cf *callFrame) closeUpAll() {
 // Find or create an unclosed *local* upvalue that matches the definition
 func (cf *callFrame) findUp(def upDef) *upValue {
 	idx := cf.stk.absIndex(def.index)
-	
+
 	node := cf.stk.unclosed
 	var pnode *upValue
 	for {
@@ -162,7 +168,7 @@ func (cf *callFrame) findUp(def upDef) *upValue {
 			// This can only happen on the very first iteration, so check it last.
 			up := def.makeUp()
 			up.absIdx = idx
-			
+
 			cf.stk.unclosed = up
 			return up
 		case node.absIdx == idx:
@@ -172,7 +178,7 @@ func (cf *callFrame) findUp(def upDef) *upValue {
 			// New item should be inserted just before this item
 			up := def.makeUp()
 			up.absIdx = idx
-			
+
 			if pnode == nil {
 				up.next = node
 				cf.stk.unclosed = up
@@ -185,7 +191,7 @@ func (cf *callFrame) findUp(def upDef) *upValue {
 			// If item should be added to the end of the list
 			up := def.makeUp()
 			up.absIdx = idx
-			
+
 			node.next = up
 			return up
 		}

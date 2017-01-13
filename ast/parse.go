@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -24,6 +24,7 @@ package ast
 
 import "fmt"
 import "github.com/milochristiansen/lua/luautil"
+
 //import "runtime"
 
 type parser struct {
@@ -35,14 +36,14 @@ func Parse(source string, line int) (block []Stmt, err error) {
 	p := &parser{
 		l: newLexer(source, line),
 	}
-	
-	defer func(){
+
+	defer func() {
 		if x := recover(); x != nil {
 			//fmt.Println("Stack Trace:")
 			//buf := make([]byte, 4096)
 			//buf = buf[:runtime.Stack(buf, true)]
 			//fmt.Printf("%s\n", buf)
-			
+
 			switch e := x.(type) {
 			case luautil.Error:
 				e.Msg = fmt.Sprintf("%v On Line: %v", e.Msg, p.l.tokenline)
@@ -54,7 +55,7 @@ func Parse(source string, line int) (block []Stmt, err error) {
 			}
 		}
 	}()
-	
+
 	for !p.l.checkLook(tknINVALID) {
 		block = append(block, p.statement())
 	}
@@ -63,14 +64,14 @@ func Parse(source string, line int) (block []Stmt, err error) {
 
 func (p *parser) funcDeclStat(local bool) Stmt {
 	p.l.getCurrent(tknFunction)
-	
+
 	// Function declarations are exploded into an explicit assignment statement.
 	node := stmtLine(&Assign{
 		LocalFunc: local,
-		Targets: []Expr{nil},
-		Values: []Expr{nil},
+		Targets:   []Expr{nil},
+		Values:    []Expr{nil},
 	}, p.l.current.Line)
-	
+
 	// Read Name
 	var ident Expr
 	hasSelf := false
@@ -95,7 +96,7 @@ func (p *parser) funcDeclStat(local bool) Stmt {
 		}
 	}
 	node.(*Assign).Targets[0] = ident
-	
+
 	// Read Parameters and Block
 	node.(*Assign).Values[0] = p.funcDeclBody(hasSelf)
 	return node
@@ -125,7 +126,7 @@ func (p *parser) statement() Stmt {
 		rnode := node
 		p.l.getCurrent(tknThen)
 		node.(*If).Then = p.block(tknElse, tknElseif, tknEnd)
-		loop:
+	loop:
 		for {
 			switch p.l.current.Type {
 			case tknElse:
@@ -137,11 +138,11 @@ func (p *parser) statement() Stmt {
 				node = stmtLine(&If{
 					Cond: p.expression(),
 				}, line)
-				
+
 				p.l.getCurrent(tknThen)
-				
+
 				node.(*If).Then = p.block(tknElse, tknElseif, tknEnd)
-				
+
 				pnode.(*If).Else = []Stmt{node}
 			case tknEnd:
 				break loop
@@ -156,7 +157,7 @@ func (p *parser) statement() Stmt {
 		cond := p.expression()
 		p.l.getCurrent(tknDo)
 		return stmtLine(&WhileLoop{
-			Cond: cond,
+			Cond:  cond,
 			Block: p.block(tknEnd),
 		}, line)
 	case tknDo:
@@ -167,19 +168,18 @@ func (p *parser) statement() Stmt {
 	case tknFor:
 		p.l.getCurrent(tknFor)
 		line := p.l.current.Line
-		
+
 		// Numeric: var = a, b, c
 		counter := ""
 		var i, l, s Expr
-		
+
 		// Generic: <vars...> in <expr | expr, expr, expr>
 		locals := []string{}
 		init := []Expr{}
-		
-		
+
 		p.l.getCurrent(tknName)
 		numeric := p.l.checkLook(tknSet)
-		
+
 		if numeric {
 			counter = p.l.current.Lexeme
 			p.l.getCurrent(tknSet)
@@ -214,23 +214,23 @@ func (p *parser) statement() Stmt {
 		if numeric {
 			return stmtLine(&ForLoopNumeric{
 				Counter: counter,
-				Init: i,
-				Limit: l,
-				Step: s,
-				Block: p.block(tknEnd),
+				Init:    i,
+				Limit:   l,
+				Step:    s,
+				Block:   p.block(tknEnd),
 			}, line)
 		}
 		return stmtLine(&ForLoopGeneric{
 			Locals: locals,
-			Init: init,
-			Block: p.block(tknEnd),
+			Init:   init,
+			Block:  p.block(tknEnd),
 		}, line)
 	case tknRepeat:
 		p.l.getCurrent(tknRepeat)
 		line := p.l.current.Line
 		blk := p.block(tknUntil)
 		return stmtLine(&RepeatUntilLoop{
-			Cond: p.expression(),
+			Cond:  p.expression(),
 			Block: blk,
 		}, line)
 	case tknFunction:
@@ -256,7 +256,7 @@ func (p *parser) statement() Stmt {
 			}
 			p.l.getCurrent(tknSeperator)
 		}
-		
+
 		vals := []Expr{}
 		if p.l.checkLook(tknSet) {
 			p.l.getCurrent(tknSet)
@@ -268,8 +268,8 @@ func (p *parser) statement() Stmt {
 		}
 		return stmtLine(&Assign{
 			LocalDecl: true,
-			Targets: targets,
-			Values: vals,
+			Targets:   targets,
+			Values:    vals,
 		}, line)
 	case tknDblColon:
 		p.l.getCurrent(tknDblColon)
@@ -313,7 +313,7 @@ func (p *parser) statement() Stmt {
 		if v, ok := ident.(*FuncCall); ok {
 			return Stmt(v)
 		}
-		
+
 		targets := []Expr{ident}
 		for p.l.checkLook(tknSeperator) {
 			p.l.getCurrent(tknSeperator)
@@ -327,7 +327,7 @@ func (p *parser) statement() Stmt {
 		}
 		return stmtLine(&Assign{
 			Targets: targets,
-			Values: vals,
+			Values:  vals,
 		}, line)
 	}
 	panic("UNREACHABLE")

@@ -1,5 +1,5 @@
 /*
-Copyright 2015-2016 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -21,26 +21,30 @@ misrepresented as being the original software.
 */
 
 // DCLua - A light weight Go Lua VM designed for easy embedding.
-// 
+//
 // The compiler generates correct code in every case I have tested, but the code quality is sometimes poor. If
 // you want better code quality it is possible to compile scripts with luac and load the binaries...
-// 
+//
 // Currently the compiler does not support constant folding, and some special instructions are not used at all
 // (instead preferring simpler sequences of other instructions). For example TESTSET is never generated, TEST
 // is used in all cases (largely because It would greatly complicate the compiler if I tried to use TESTSET
 // where possible). Expressions use a simple "recursive" code generation style, meaning that it wastes registers
 // like crazy in some (rare) cases.
-// 
+//
 // Most (if not all) of the API functions may cause a panic, but only if things go REALLY wrong. If a function
 // does not state that it can panic or "raise an error" it will only do so if a critical internal assumption
 // proves to be wrong (AKA there is a bug in the code somewhere). These errors will have a special prefix
 // prepended onto the error message stating that this error indicates an internal VM bug. If you ever see
 // such an error I want to know about it ASAP.
-// 
+//
+// That said, if an API function *can* "raise an error" it can and will panic if something goes wrong. This is
+// not a problem inside a native function (as the VM is prepared for this), but if you need to call these functions
+// outside of code to be run by the VM you may want to use Protect or Recover to properly catch these errors.
+//
 // The VM itself does not provide any Lua functions, the standard library is provided entirely by external packages.
 // This means that the standard library never does anything that your own code cannot do (there is no "private API"
-// that is used by the standard library). 
-// 
+// that is used by the standard library).
+//
 // Anything to do with the OS or file IO is not provided. Such things do not belong in the core libraries of an
 // embedded scripting language (do you really want scripts to be able to read and write random files without
 // restriction?).
@@ -52,7 +56,7 @@ import "io"
 
 const (
 	// If you have more than 1000000 items in a single stack frame you probably should think about refactoring...
-	RegistryIndex = -1000000 - iota 
+	RegistryIndex = -1000000 - iota
 	GlobalsIndex
 	FirstUpVal // To get a specific upvalue use "FirstUpVal-<upvalue index>"
 )
@@ -66,7 +70,7 @@ type State struct {
 
 	// Add a native stack trace to errors that have attached stack traces.
 	NativeTrace bool
-	
+
 	registry *table
 	global   *table // _G
 	metaTbls [typeCount]*table
@@ -79,13 +83,13 @@ func NewState() *State {
 	l := &State{
 		stack: newStack(),
 	}
-	
+
 	l.global = newTable(l, 0, 64)
 	l.global.SetRaw("_G", l.global)
-	
+
 	l.registry = newTable(l, 0, 32)
 	l.registry.SetRaw("LUA_RIDX_GLOBALS", l.global)
-	
+
 	return l
 }
 

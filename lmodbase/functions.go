@@ -1,5 +1,5 @@
 /*
-Copyright 2015 by Milo Christiansen
+Copyright 2016-2017 by Milo Christiansen
 
 This software is provided 'as-is', without any express or implied warranty. In
 no event will the authors be held liable for any damages arising from the use of
@@ -27,11 +27,11 @@ import "github.com/milochristiansen/lua"
 import "github.com/milochristiansen/lua/luautil"
 
 // Open loads the "base" module when executed with "lua.(*State).Call".
-// 
+//
 // It would also be possible to use this with "lua.(*State).Require" (which has some side effects that
 // are inappropriate for a core library like this) or "lua.(*State).Preload" (which makes even less
 // sense for a core library).
-// 
+//
 // The following standard Lua functions/fields are not provided:
 //	collectgarbage
 //	dofile
@@ -40,9 +40,9 @@ import "github.com/milochristiansen/lua/luautil"
 func Open(l *lua.State) int {
 	l.NewTable(0, 32) // 19 standard functions (+4 DNI)
 	tidx := l.AbsIndex(-1)
-	
+
 	l.SetTableFunctions(tidx, functions)
-	
+
 	l.PushIndex(lua.GlobalsIndex)
 	for k, v := range functions {
 		l.Push(k)
@@ -50,7 +50,7 @@ func Open(l *lua.State) int {
 		l.SetTableRaw(-3)
 	}
 	l.Pop(1)
-	
+
 	// Sanity check
 	if l.AbsIndex(-1) != tidx {
 		panic("iBroke!") // What happens when you throw an iPhone...
@@ -63,7 +63,7 @@ var functions = map[string]lua.NativeFunction{
 		if l.ToBool(1) {
 			return l.AbsIndex(-1)
 		}
-		
+
 		msg := l.OptString(2, "Assertion Failed!")
 		l.Push(msg)
 		l.Error()
@@ -82,7 +82,7 @@ var functions = map[string]lua.NativeFunction{
 		if typ != lua.TypNil {
 			return 1
 		}
-		
+
 		ok := l.GetMetaTable(1)
 		if !ok {
 			return 0
@@ -119,18 +119,18 @@ var functions = map[string]lua.NativeFunction{
 				v = l.OptString(-1, "")
 				l.Pop(1)
 			}
-			
+
 			name = l.OptString(2, "=(load)")
 		} else {
 			chunk = l.ToString(1)
 			name = l.OptString(2, chunk)
 		}
-		
+
 		env := 0
 		if l.TypeOf(4) != lua.TypNil {
 			env = 4
 		}
-		
+
 		modeB := false
 		modeT := false
 		switch l.OptString(3, "bt") {
@@ -142,7 +142,7 @@ var functions = map[string]lua.NativeFunction{
 			modeB = true
 			modeT = true
 		}
-		
+
 		if modeB {
 			err := l.LoadBinary(strings.NewReader(chunk), name, env)
 			if err != nil && !modeT {
@@ -153,7 +153,7 @@ var functions = map[string]lua.NativeFunction{
 				return 1
 			}
 		}
-		
+
 		if modeT {
 			err := l.LoadText(strings.NewReader(chunk), name, env)
 			if err != nil {
@@ -188,7 +188,7 @@ var functions = map[string]lua.NativeFunction{
 			l.Call(1, 3)
 			return 3
 		}
-		
+
 		// pairs does NOT use the default next! Instead I use a custom iterator to get around the fact
 		// that next is not reentrant.
 		l.GetIter(1)
@@ -199,8 +199,8 @@ var functions = map[string]lua.NativeFunction{
 	"pcall": func(l *lua.State) int {
 		l.Push(true)
 		l.Insert(1)
-		
-		err := l.PCall(l.AbsIndex(-1) - 2, -1)
+
+		err := l.PCall(l.AbsIndex(-1)-2, -1)
 		if err != nil {
 			l.Push(false)
 			l.Push(err.Error())
@@ -237,15 +237,15 @@ var functions = map[string]lua.NativeFunction{
 	},
 	"select": func(l *lua.State) int {
 		n := l.AbsIndex(-1)
-		
+
 		if l.TypeOf(1) == lua.TypString && l.ToString(1) == "#" {
 			l.Push(int64(l.AbsIndex(-1) - 1))
 			return 1
 		}
-		
+
 		i := int(l.ToInt(1))
 		l.AbsIndex(i)
-		
+
 		if i > n {
 			return 0
 		}
@@ -256,7 +256,7 @@ var functions = map[string]lua.NativeFunction{
 		if typ != lua.TypNil {
 			luautil.Raise("Cannot overwrite a meta table that has a __metatable field.", luautil.ErrTypGenRuntime)
 		}
-		
+
 		l.PushIndex(2)
 		l.SetMetaTable(1)
 		l.PushIndex(1)
