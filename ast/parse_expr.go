@@ -183,7 +183,8 @@ func (p *parser) tblConstruct() Expr {
 }
 
 func (p *parser) expression() Expr {
-	return p.valOr()
+	return p.subexpr(0)
+	//return p.valOr()
 }
 
 /*
@@ -212,179 +213,281 @@ Operators...
 "a"..("b"..((1+2)+3))
 */
 
-func (p *parser) valOr() Expr {
-	l := p.valAnd()
-	for p.l.checkLook(tknOr) {
-		p.l.getCurrent(tknOr)
-		line := p.l.current.Line
-		l = exprLine(&Operator{Op: OpOr, Left: l, Right: p.valAnd()}, line)
-	}
-	return l
+// Operator priorities
+var priorities = [...]struct {
+	left  int
+	right int
+}{
+	{10, 10}, // OpAdd
+	{10, 10}, // OpSub
+	{11, 11}, // OpMul
+	{11, 11}, // OpMod
+	{14, 13}, // OpPow (right associative)
+	{11, 11}, // OpDiv
+	{11, 11}, // OpIDiv
+	{6, 6},   // OpBinAND
+	{4, 4},   // OpBinOR
+	{5, 5},   // OpBinXOR
+	{7, 7},   // OpBinShiftL
+	{7, 7},   // OpBinShiftR
+	{12, 12}, // OpUMinus
+	{12, 12}, // OpBinNot
+	{12, 12}, // OpNot
+	{12, 12}, // OpLength
+	{9, 8},   // OpConcat (right associative)
+
+	{3, 3}, // OpEqual
+	{3, 3}, // OpNotEqual
+	{3, 3}, // OpLessThan
+	{3, 3}, // OpGreaterThan
+	{3, 3}, // OpLessOrEqual
+	{3, 3}, // OpGreaterOrEqual
+
+	{2, 2}, // OpAnd
+	{1, 1}, // OpOr
 }
 
-func (p *parser) valAnd() Expr {
-	l := p.valCmp()
-	for p.l.checkLook(tknAnd) {
-		p.l.getCurrent(tknAnd)
-		line := p.l.current.Line
-		l = exprLine(&Operator{Op: OpAnd, Left: l, Right: p.valCmp()}, line)
-	}
-	return l
+var tknToBinOp = map[int]opTyp{
+	tknAnd:    OpAnd,
+	tknOr:     OpOr,
+	tknAdd:    OpAdd,
+	tknSub:    OpSub,
+	tknMul:    OpMul,
+	tknDiv:    OpDiv,
+	tknIDiv:   OpIDiv,
+	tknMod:    OpMod,
+	tknPow:    OpPow,
+	tknEQ:     OpEqual,
+	tknGT:     OpGreaterThan,
+	tknGE:     OpGreaterOrEqual,
+	tknLT:     OpLessThan,
+	tknLE:     OpLessOrEqual,
+	tknNE:     OpNotEqual,
+	tknShiftL: OpBinShiftL,
+	tknShiftR: OpBinShiftR,
+	tknBXOr:   OpBinXOR,
+	tknBOr:    OpBinOR,
+	tknBAnd:   OpBinAND,
+	tknConcat: OpConcat,
 }
 
-func (p *parser) valCmp() Expr {
-	l := p.valBOr()
-	for p.l.checkLook(tknEQ, tknGT, tknGE, tknLT, tknLE, tknNE) {
-		p.l.getCurrent(tknEQ, tknGT, tknGE, tknLT, tknLE, tknNE)
-		line := p.l.current.Line
-		switch p.l.current.Type {
-		case tknEQ:
-			l = exprLine(&Operator{Op: OpEqual, Left: l, Right: p.valBOr()}, line)
-		case tknGT:
-			l = exprLine(&Operator{Op: OpGreaterThan, Left: l, Right: p.valBOr()}, line)
-		case tknGE:
-			l = exprLine(&Operator{Op: OpGreaterOrEqual, Left: l, Right: p.valBOr()}, line)
-		case tknLT:
-			l = exprLine(&Operator{Op: OpLessThan, Left: l, Right: p.valBOr()}, line)
-		case tknLE:
-			l = exprLine(&Operator{Op: OpLessOrEqual, Left: l, Right: p.valBOr()}, line)
-		case tknNE:
-			l = exprLine(&Operator{Op: OpNotEqual, Left: l, Right: p.valBOr()}, line)
-		}
-	}
-	return l
+var tknToUnOp = map[int]opTyp{
+	tknSub:  OpUMinus,
+	tknBXOr: OpBinNot,
+	tknNot:  OpNot,
+	tknLen:  OpLength,
 }
 
-func (p *parser) valBOr() Expr {
-	l := p.valBXOr()
-	for p.l.checkLook(tknBOr) {
-		p.l.getCurrent(tknBOr)
+func (p *parser) subexpr(limit int) Expr {
+	// Grab the starting left hand side of the expression
+	var e1 Expr
+	op, ok := tknToUnOp[p.l.look.Type]
+	if ok {
+		p.l.advance()
 		line := p.l.current.Line
-		l = exprLine(&Operator{Op: OpBinOR, Left: l, Right: p.valBXOr()}, line)
+		e1 = exprLine(&Operator{Op: op, Right: p.subexpr(12)}, line)
+	} else {
+		e1 = p.value()
 	}
-	return l
+
+	// Then grab the right hand side. The old right then becomes the new left until we cannot find
+	// anything with a priority higher than the limit anymore.
+	op, ok = tknToBinOp[p.l.look.Type]
+	for ok && priorities[op].left > limit {
+		p.l.advance()
+		line := p.l.current.Line
+		e1 = exprLine(&Operator{Op: op, Left: e1, Right: p.subexpr(priorities[op].right)}, line)
+
+		op, ok = tknToBinOp[p.l.look.Type]
+	}
+	return e1
 }
 
-func (p *parser) valBXOr() Expr {
-	l := p.valBAnd()
-	for p.l.checkLook(tknBXOr) {
-		p.l.getCurrent(tknBXOr)
-		line := p.l.current.Line
-		l = exprLine(&Operator{Op: OpBinXOR, Left: l, Right: p.valBAnd()}, line)
-	}
-	return l
-}
+/*
+Below this point is the old expression parsing code. I wrote this the way I learned years ago, without
+looking at the way it was done in standard Lua. Amazingly it handles everything correctly, except one
+case: Any unary operator after a power operator will create a syntax error. Sadly I am not sure if this
+code can be easily fixed to handle that case.
 
-func (p *parser) valBAnd() Expr {
-	l := p.valShift()
-	for p.l.checkLook(tknBAnd) {
-		p.l.getCurrent(tknBAnd)
-		line := p.l.current.Line
-		l = exprLine(&Operator{Op: OpBinAND, Left: l, Right: p.valShift()}, line)
-	}
-	return l
-}
+Anyway, I then looked at how standard Lua does it. Their method is much shorter, but a little harder to
+understand... Oh, well. The above expression code uses something similar to standard Lua now.
 
-func (p *parser) valShift() Expr {
-	l := p.valConcat()
-	for p.l.checkLook(tknShiftL, tknShiftR) {
-		p.l.getCurrent(tknShiftL, tknShiftR)
-		line := p.l.current.Line
-		switch p.l.current.Type {
-		case tknShiftL:
-			l = exprLine(&Operator{Op: OpBinShiftL, Left: l, Right: p.valConcat()}, line)
-		case tknShiftR:
-			l = exprLine(&Operator{Op: OpBinShiftR, Left: l, Right: p.valConcat()}, line)
-		}
-	}
-	return l
-}
+Scroll down far enough and you will come to some code that is still in use, just FYI.
+*/
 
-func (p *parser) valConcat() Expr {
-	l := p.valAdd()
-	// No loop!
-	if p.l.checkLook(tknConcat) {
-		p.l.getCurrent(tknConcat)
-		line := p.l.current.Line
-		// I... Think?
-		// This would have the effect of treating the remainder of the expression like it was in
-		// parenthesis, which (if I am thinking correctly) is basically what right associative is...
-		//return exprLine(&Operator{Op: OpConcat, Left: l, Right: p.expression()}, line)
+// func (p *parser) valOr() Expr {
+// 	l := p.valAnd()
+// 	for p.l.checkLook(tknOr) {
+// 		p.l.getCurrent(tknOr)
+// 		line := p.l.current.Line
+// 		l = exprLine(&Operator{Op: OpOr, Left: l, Right: p.valAnd()}, line)
+// 	}
+// 	return l
+// }
 
-		// Apparently not, maybe this?
-		return exprLine(&Operator{Op: OpConcat, Left: l, Right: p.valConcat()}, line)
-	}
-	return l
-}
+// func (p *parser) valAnd() Expr {
+// 	l := p.valCmp()
+// 	for p.l.checkLook(tknAnd) {
+// 		p.l.getCurrent(tknAnd)
+// 		line := p.l.current.Line
+// 		l = exprLine(&Operator{Op: OpAnd, Left: l, Right: p.valCmp()}, line)
+// 	}
+// 	return l
+// }
 
-func (p *parser) valAdd() Expr {
-	l := p.valMul()
-	for p.l.checkLook(tknAdd, tknSub) {
-		p.l.getCurrent(tknAdd, tknSub)
-		line := p.l.current.Line
-		switch p.l.current.Type {
-		case tknAdd:
-			l = exprLine(&Operator{Op: OpAdd, Left: l, Right: p.valMul()}, line)
-		case tknSub:
-			l = exprLine(&Operator{Op: OpSub, Left: l, Right: p.valMul()}, line)
-		}
-	}
-	return l
-}
+// func (p *parser) valCmp() Expr {
+// 	l := p.valBOr()
+// 	for p.l.checkLook(tknEQ, tknGT, tknGE, tknLT, tknLE, tknNE) {
+// 		p.l.getCurrent(tknEQ, tknGT, tknGE, tknLT, tknLE, tknNE)
+// 		line := p.l.current.Line
+// 		switch p.l.current.Type {
+// 		case tknEQ:
+// 			l = exprLine(&Operator{Op: OpEqual, Left: l, Right: p.valBOr()}, line)
+// 		case tknGT:
+// 			l = exprLine(&Operator{Op: OpGreaterThan, Left: l, Right: p.valBOr()}, line)
+// 		case tknGE:
+// 			l = exprLine(&Operator{Op: OpGreaterOrEqual, Left: l, Right: p.valBOr()}, line)
+// 		case tknLT:
+// 			l = exprLine(&Operator{Op: OpLessThan, Left: l, Right: p.valBOr()}, line)
+// 		case tknLE:
+// 			l = exprLine(&Operator{Op: OpLessOrEqual, Left: l, Right: p.valBOr()}, line)
+// 		case tknNE:
+// 			l = exprLine(&Operator{Op: OpNotEqual, Left: l, Right: p.valBOr()}, line)
+// 		}
+// 	}
+// 	return l
+// }
 
-func (p *parser) valMul() Expr {
-	l := p.valUnOp()
-	for p.l.checkLook(tknMul, tknDiv, tknIDiv, tknMod) {
-		p.l.getCurrent(tknMul, tknDiv, tknIDiv, tknMod)
-		line := p.l.current.Line
-		switch p.l.current.Type {
-		case tknMul:
-			l = exprLine(&Operator{Op: OpMul, Left: l, Right: p.valUnOp()}, line)
-		case tknDiv:
-			l = exprLine(&Operator{Op: OpDiv, Left: l, Right: p.valUnOp()}, line)
-		case tknIDiv:
-			l = exprLine(&Operator{Op: OpIDiv, Left: l, Right: p.valUnOp()}, line)
-		case tknMod:
-			l = exprLine(&Operator{Op: OpMod, Left: l, Right: p.valUnOp()}, line)
-		}
-	}
-	return l
-}
+// func (p *parser) valBOr() Expr {
+// 	l := p.valBXOr()
+// 	for p.l.checkLook(tknBOr) {
+// 		p.l.getCurrent(tknBOr)
+// 		line := p.l.current.Line
+// 		l = exprLine(&Operator{Op: OpBinOR, Left: l, Right: p.valBXOr()}, line)
+// 	}
+// 	return l
+// }
 
-func (p *parser) valUnOp() Expr {
-	switch p.l.look.Type {
-	case tknNot:
-		p.l.getCurrent(tknNot)
-		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpNot, Right: p.valUnOp()}, line)
-	case tknLen:
-		p.l.getCurrent(tknLen)
-		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpLength, Right: p.valUnOp()}, line)
-	case tknBXOr:
-		p.l.getCurrent(tknBXOr)
-		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpBinNot, Right: p.valUnOp()}, line)
-	case tknSub:
-		p.l.getCurrent(tknSub)
-		line := p.l.current.Line
-		return exprLine(&Operator{Op: OpUMinus, Right: p.valUnOp()}, line)
-	default:
-		return p.valPow()
-	}
-}
+// func (p *parser) valBXOr() Expr {
+// 	l := p.valBAnd()
+// 	for p.l.checkLook(tknBXOr) {
+// 		p.l.getCurrent(tknBXOr)
+// 		line := p.l.current.Line
+// 		l = exprLine(&Operator{Op: OpBinXOR, Left: l, Right: p.valBAnd()}, line)
+// 	}
+// 	return l
+// }
 
-func (p *parser) valPow() Expr {
-	l := p.value()
-	// No loop!
-	if p.l.checkLook(tknPow) {
-		p.l.getCurrent(tknPow)
-		line := p.l.current.Line
-		// See valConcat.
-		return exprLine(&Operator{Op: OpPow, Left: l, Right: p.valPow()}, line)
-	}
-	return l
-}
+// func (p *parser) valBAnd() Expr {
+// 	l := p.valShift()
+// 	for p.l.checkLook(tknBAnd) {
+// 		p.l.getCurrent(tknBAnd)
+// 		line := p.l.current.Line
+// 		l = exprLine(&Operator{Op: OpBinAND, Left: l, Right: p.valShift()}, line)
+// 	}
+// 	return l
+// }
+
+// func (p *parser) valShift() Expr {
+// 	l := p.valConcat()
+// 	for p.l.checkLook(tknShiftL, tknShiftR) {
+// 		p.l.getCurrent(tknShiftL, tknShiftR)
+// 		line := p.l.current.Line
+// 		switch p.l.current.Type {
+// 		case tknShiftL:
+// 			l = exprLine(&Operator{Op: OpBinShiftL, Left: l, Right: p.valConcat()}, line)
+// 		case tknShiftR:
+// 			l = exprLine(&Operator{Op: OpBinShiftR, Left: l, Right: p.valConcat()}, line)
+// 		}
+// 	}
+// 	return l
+// }
+
+// func (p *parser) valConcat() Expr {
+// 	l := p.valAdd()
+// 	// No loop!
+// 	if p.l.checkLook(tknConcat) {
+// 		p.l.getCurrent(tknConcat)
+// 		line := p.l.current.Line
+// 		// I... Think?
+// 		// This would have the effect of treating the remainder of the expression like it was in
+// 		// parenthesis, which (if I am thinking correctly) is basically what right associative is...
+// 		//return exprLine(&Operator{Op: OpConcat, Left: l, Right: p.expression()}, line)
+
+// 		// Apparently not, maybe this?
+// 		return exprLine(&Operator{Op: OpConcat, Left: l, Right: p.valConcat()}, line)
+// 	}
+// 	return l
+// }
+
+// func (p *parser) valAdd() Expr {
+// 	l := p.valMul()
+// 	for p.l.checkLook(tknAdd, tknSub) {
+// 		p.l.getCurrent(tknAdd, tknSub)
+// 		line := p.l.current.Line
+// 		switch p.l.current.Type {
+// 		case tknAdd:
+// 			l = exprLine(&Operator{Op: OpAdd, Left: l, Right: p.valMul()}, line)
+// 		case tknSub:
+// 			l = exprLine(&Operator{Op: OpSub, Left: l, Right: p.valMul()}, line)
+// 		}
+// 	}
+// 	return l
+// }
+
+// func (p *parser) valMul() Expr {
+// 	l := p.valUnOp()
+// 	for p.l.checkLook(tknMul, tknDiv, tknIDiv, tknMod) {
+// 		p.l.getCurrent(tknMul, tknDiv, tknIDiv, tknMod)
+// 		line := p.l.current.Line
+// 		switch p.l.current.Type {
+// 		case tknMul:
+// 			l = exprLine(&Operator{Op: OpMul, Left: l, Right: p.valUnOp()}, line)
+// 		case tknDiv:
+// 			l = exprLine(&Operator{Op: OpDiv, Left: l, Right: p.valUnOp()}, line)
+// 		case tknIDiv:
+// 			l = exprLine(&Operator{Op: OpIDiv, Left: l, Right: p.valUnOp()}, line)
+// 		case tknMod:
+// 			l = exprLine(&Operator{Op: OpMod, Left: l, Right: p.valUnOp()}, line)
+// 		}
+// 	}
+// 	return l
+// }
+
+// func (p *parser) valUnOp() Expr {
+// 	switch p.l.look.Type {
+// 	case tknNot:
+// 		p.l.getCurrent(tknNot)
+// 		line := p.l.current.Line
+// 		return exprLine(&Operator{Op: OpNot, Right: p.valUnOp()}, line)
+// 	case tknLen:
+// 		p.l.getCurrent(tknLen)
+// 		line := p.l.current.Line
+// 		return exprLine(&Operator{Op: OpLength, Right: p.valUnOp()}, line)
+// 	case tknBXOr:
+// 		p.l.getCurrent(tknBXOr)
+// 		line := p.l.current.Line
+// 		return exprLine(&Operator{Op: OpBinNot, Right: p.valUnOp()}, line)
+// 	case tknSub:
+// 		p.l.getCurrent(tknSub)
+// 		line := p.l.current.Line
+// 		return exprLine(&Operator{Op: OpUMinus, Right: p.valUnOp()}, line)
+// 	default:
+// 		return p.valPow()
+// 	}
+// }
+
+// func (p *parser) valPow() Expr {
+// 	l := p.value()
+// 	// No loop!
+// 	if p.l.checkLook(tknPow) {
+// 		p.l.getCurrent(tknPow)
+// 		line := p.l.current.Line
+// 		// See valConcat.
+// 		return exprLine(&Operator{Op: OpPow, Left: l, Right: p.valPow()}, line)
+// 	}
+// 	return l
+// }
 
 // float | int | string | nil | true | false | ... | table constructor | function call | varValue
 func (p *parser) value() Expr {

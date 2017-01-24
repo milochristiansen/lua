@@ -38,6 +38,8 @@ import "github.com/milochristiansen/lua/lmodmath"
 func MkState() *lua.State {
 	l := lua.NewState()
 
+	//l.NativeTrace = true
+
 	// Don't include the string extensions.
 	l.Push("_NO_STRING_EXTS")
 	l.Push(true)

@@ -282,7 +282,7 @@ func (p *parser) statement() Stmt {
 		p.l.getCurrent(tknReturn)
 		line := p.l.current.Line
 		items := []Expr{}
-		for !p.l.checkLook(tknEnd, tknElse, tknElseif, tknUntil, tknINVALID) {
+		for !p.l.checkLook(tknEnd, tknElse, tknElseif, tknUntil, tknUnnecessary, tknINVALID) {
 			items = append(items, p.expression())
 			if !p.l.checkLook(tknSeperator) {
 				break

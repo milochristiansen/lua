@@ -287,6 +287,8 @@ func compileCall(call *ast.FuncCall, state *compState, reg, rets int, tail bool)
 	state.addInst(createABC(opCall, f, params+1, rets+1), call.Line())
 }
 
+// To get better code quality I need to change how expressions are parsed.
+
 type exprData struct {
 	// If non-nil this expression was a boolean expression, and as such does not produce
 	// an actual value without some extra code
@@ -347,6 +349,13 @@ func (e exprData) To(tryInPlace bool) (int, bool) {
 		return e.reg, true
 	case e.boolCanR:
 		e.boolean.patch(state.f, len(state.f.code))
+		if e.reg != e.oreg {
+			if tryInPlace {
+				return e.reg, false
+			}
+			state.addInst(createABC(opMove, e.oreg, e.reg, 0), e.line)
+			return e.oreg, true
+		}
 		return e.reg, true
 	case e.boolean != nil:
 		if e.boolRev {
@@ -574,51 +583,28 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 
 		// The pain in the a** operators
-		// TODO: The code generated here is *terrible*.
+		// TODO: The code generated here is quite bad.
+
+		// TESTSET dest src sense ; if bool(src) == sense { dest = src, <jump> } else { <fallthrough> }
+		// TEST val _ sense ; if bool(val) == sense { <jump> } else { <fallthrough> }
 
 		case ast.OpAnd:
-			//	Get the left value into a register (any register)
-			//	if left == reg
-			//		TEST reg _ 1
-			//		JMP <end> // on false
-			//	else
-			//		TESTSET reg left 1
-			//		JMP <end> // on false
-			//	Get the right value into any register
-			//	if right == reg
-			//		TEST reg _ 1
-			//		JMP <end> // on false
-			//	else
-			//		TESTSET reg right 1
-			//		JMP <end> // on false
-			//	if jump on true
-			//		JMP <target>
-			//		<end>
-			//	else
-			//		make all "JMP <end>" sequences above into "JMP <target>"
-
 			rtn.boolCanR = true
+			sense := 0
 			patch := patchList([]int{})
 			lr, lru := expr(ee.Left, state, reg, false).To(true)
 			if lru {
-				state.addInst(createABC(opTest, reg, 0, 0), ee.Left.Line()) // jump on false
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Left.Line())
+				state.addInst(createABC(opTest, reg, 0, sense), ee.Left.Line())
 			} else {
-				state.addInst(createABC(opTestSet, reg, lr, 0), ee.Left.Line()) // jump on false
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Left.Line())
+				state.addInst(createABC(opTestSet, reg, lr, sense), ee.Left.Line())
 			}
-			rr, rru := expr(ee.Right, state, reg, false).To(true)
-			if rru {
-				state.addInst(createABC(opTest, reg, 0, 0), ee.Right.Line()) // jump on false
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Right.Line())
-			} else {
-				state.addInst(createABC(opTestSet, reg, rr, 0), ee.Right.Line()) // jump on false
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Right.Line())
-			}
+			patch = append(patch, len(state.f.code))
+			state.addInst(createAsBx(opJump, 0, 0), ee.Left.Line())
+			expr(ee.Right, state, reg, false).To(false)
+			state.addInst(createABC(opTest, reg, 0, sense), ee.Right.Line())
+			patch = append(patch, len(state.f.code))
+			state.addInst(createAsBx(opJump, 0, 0), ee.Right.Line())
+
 			if boolRev {
 				rtn.boolean = patchList([]int{len(state.f.code)})
 				state.addInst(createAsBx(opJump, 0, 0), ee.Line())
@@ -628,58 +614,29 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			rtn.boolean = patch
 			return rtn
 		case ast.OpOr:
-			// TESTSET dest src sense ; if bool(src) == sense { sest = src } else { pc++ }
-			// TEST val _ sense ; if bool(val) == sense { } else { pc++ }
-
-			//	Get the left value into a register (any register)
-			//	if left == reg
-			//		TEST reg _ 1
-			//		JMP <end> // on true
-			//	else
-			//		TESTSET reg left 1
-			//		JMP <end> // on true
-			//	Get the right value into any register
-			//	if right == reg
-			//		TEST reg _ 1
-			//		JMP <end> // on true
-			//	else
-			//		TESTSET reg right 1
-			//		JMP <end> // on true
-			//	if jump on true
-			//		make all "JMP <end>" sequences above into "JMP <target>"
-			//	else
-			//		JMP <target>
-			//		<end>
-
 			rtn.boolCanR = true
+			sense := 1
 			patch := patchList([]int{})
 			lr, lru := expr(ee.Left, state, reg, false).To(true)
 			if lru {
-				state.addInst(createABC(opTest, reg, 0, 1), ee.Left.Line()) // jump on true
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Left.Line())
+				state.addInst(createABC(opTest, reg, 0, sense), ee.Left.Line())
 			} else {
-				state.addInst(createABC(opTestSet, reg, lr, 1), ee.Left.Line()) // jump on true
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Left.Line())
+				state.addInst(createABC(opTestSet, reg, lr, sense), ee.Left.Line())
 			}
-			rr, rru := expr(ee.Right, state, reg, false).To(true)
-			if rru {
-				state.addInst(createABC(opTest, reg, 0, 1), ee.Right.Line()) // jump on true
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Right.Line())
-			} else {
-				state.addInst(createABC(opTestSet, reg, rr, 1), ee.Right.Line()) // jump on true
-				patch = append(patch, len(state.f.code))
-				state.addInst(createAsBx(opJump, 0, 0), ee.Right.Line())
-			}
-			if boolRev {
-				rtn.boolean = patch
+			patch = append(patch, len(state.f.code))
+			state.addInst(createAsBx(opJump, 0, 0), ee.Left.Line())
+			expr(ee.Right, state, reg, false).To(false)
+			state.addInst(createABC(opTest, reg, 0, sense), ee.Right.Line())
+			patch = append(patch, len(state.f.code))
+			state.addInst(createAsBx(opJump, 0, 0), ee.Right.Line())
+
+			if !boolRev {
+				rtn.boolean = patchList([]int{len(state.f.code)})
+				state.addInst(createAsBx(opJump, 0, 0), ee.Line())
+				patch.patch(state.f, len(state.f.code))
 				return rtn
 			}
-			rtn.boolean = patchList([]int{len(state.f.code)})
-			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
-			patch.patch(state.f, len(state.f.code))
+			rtn.boolean = patch
 			return rtn
 		}
 	case *ast.FuncCall:

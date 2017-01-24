@@ -57,10 +57,8 @@ for `State.LoadTextExternal` for more information. Keep in mind that due to limi
 is not reentrant! If you need concurrency support it would be better to use `State.LoadBinary` and write your own wrapper.
 
 The default compiler provided by this library does not support constant folding, and some special instructions are not
-used at all (instead preferring simpler sequences of other instructions). For example TESTSET is never generated, TEST
-is used in all cases (largely because it would greatly complicate the compiler if I tried to use TESTSET where possible).
-Expressions use a simple "recursive" code generation style, meaning that it wastes registers like crazy in some (rare)
-cases.
+used at all (instead preferring simpler sequences of other instructions). Expressions use a simple "recursive" code
+generation style, meaning that it wastes registers like crazy in some (rare) cases.
 
 One of the biggest code quality offenders is `or` and `and`, as they can result in sequences like this one:
 
@@ -83,6 +81,11 @@ As you can see this is terrible. That sequence would be better written as:
 But the current expression compiler is not smart enough to do it that way. Luckily this is the worst offender, most
 things produce code that is very close or identical to what `luac` produces. Note that the reason why this code is so
 bad is entirely because the expression used `or` (and the implementation of `and` and `or` is very bad).
+
+To my knowledge there is only one case where my compiler does a better job than `luac`, namely when compiling loops or
+conditionals with constant conditions, impossible conditions are elided (so if you say `while false do x(y z) end` the
+compiler will do nothing). AFAIK there is no way to jump into such blocks anyway, so eliding them should have no effect
+on the correctness of the program.
 
 The compiler provides an implementation of a `continue` keyword, but the keyword definition in the lexer is commented
 out. If you want `continue` all you need to do is uncomment the indicated line (near the top of `ast/lexer.go`). There
@@ -113,6 +116,7 @@ The following standard functions/variables are not available:
 * `string.packsize` (too lazy to implement, ask if you need it)
 * `string.unpack` (too lazy to implement, ask if you need it)
 
+
 * * *
 
 The following standard modules are not available:
@@ -125,6 +129,7 @@ The following standard modules are not available:
 
 Coroutine support is not available. I can implement something based on goroutines fairly easily, but I will only do so
 if someone actually needs it and/or if I get really bored...
+
 
 * * *
 
@@ -146,6 +151,12 @@ Lua implementation does not follow the specification exactly:
 * The `#` (length) operator always returns the exact length of a (table) sequence, not the total length of the array
   portion of the table. See the comment in `table.go` (about halfway down) for more details (including quotes from the
   spec and examples).
+* The reference Lua compiler/VM does some really weird things with the modulo operator. For example: `-3 % 5 == 2` Every
+  other calculator or programming language I chose to feed this to reported: `-3 % 5 == -3` (but `5 % -3 == 2`, so it
+  seems like Lua reverses the operands?). It seems Lua only reports weird results when one of the operands is negative?
+  There is nothing in the spec that implies this is correct behavior, so I am guessing that it is simply a bug. Needless
+  to say I simply use the Go modulus operator (so I get the correct result rather than the weird one Lua gets).
+
 
 * * *
 
@@ -186,6 +197,7 @@ The list is (roughly) in priority order.
 * Write more tests for the compiler and VM.
 * (supermeta) Allow using byte slices as strings and vice-versa. Maybe attach a method to byte slices that allows conversion
   back and forth? (this would probably be fairly easy to do)
+  * Do the same with rune slices?
 * Write better stack traces for errors.
 * Improve compilation of `and` and `or`.
 * Fix jumping to a label at the end of a block.
@@ -208,7 +220,24 @@ regard to "commit noise". This means that a new release will often have changes 
 noise, each change listed here will list the files I modified for that change.
 
 (please don't bug me about using version control, I *do* use version control. I just use a custom type designed for
-single person teams where the only important use is rolling back bad changes and such)
+single person teams, where the only important use is rolling back bad changes and such)
+
+
+* * *
+
+1.1.1
+
+More script tests, more compiler bugs fixed. Same song, different verse.
+
+* Added another set of script tests. (script_test.go)
+* Fixed unary operators after a power operator, for example `2 ^ - -2`. To fix this issue I totally rewrote how operators
+  are parsed. (ast/parse_expr.go)
+* Fixed semicolons immediately after a return statement. (ast/parse.go)
+* Fixed an improper optimization or repeat-until loops. Basically if the loop had a constant for the loop condition its
+  sense was being reversed (so a false condition resulted in the loop being compiled as a simple block, and a true condition
+  resulted in an infinite loop). (compile.go)
+* Fixed `and` in non-boolean contexts. Also `and` and `or` *may* produce slightly better code now. (compile_expr.go)
+
 
 * * *
 
@@ -219,8 +248,8 @@ earlier work for one of my many toy languages. This new API is kinda cool, but i
 Basically it is intended for quick projects and temporarily exposing data to scripts. It was fun to write, and so even
 if no one uses it, it has served its purpose :P
 
-I really should have been working on more script tests, but this was more fun... Anyway, I have no doubt responsibility
-will reassert itself soon...
+I really should have been working on more script tests, but this was more fun... I have no doubt responsibility will
+reassert itself soon.
 
 Anyway, I also added two new convenience methods for table iteration, as well as some minor changes to the old one (you
 can still use it, but it is now a thin wrapper over one of the new functions, so you shouldn't).
@@ -246,6 +275,7 @@ can still use it, but it is now a thin wrapper over one of the new functions, so
   The API tests still have their own copies of some of the functions, as they need to be in the base package so they can
   access internal APIs (stupid circular imports). (script_test.go)
 * Clarified what API functions may panic, I think I got them all... (api.go) 
+
 
 * * *
 
@@ -274,6 +304,7 @@ Oh, and `pcall` works now (it didn't work at all before. Sorry, I never used it)
 * On a recovered error each stack frame's upvalues are closed before the stack is stripped. This corrects incorrect
   behavior that arises when a function stores a closure to an unclosed upvalue then errors out (the closure may still be
   referenced, but it's upvalues may be invalid). (api.go, callframe.go)
+
 
 * * *
 

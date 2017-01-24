@@ -358,12 +358,62 @@ func main() {
 	--until i > 10 or a[i]() ~= x
 	--assert(i == 11 and a[1]() == 1 and a[3]() == 3 and i == 4)
 	
+	-- luac prints "x"
+	-- my compiler prints nil
+	--local a, b, c, d, e = 1, 2, false, 1, "x"
+	--print(a >= b or c or ( d and e ) or nil)
+
+	--print(a >= b or c or true or nil) -- Prints true for both
+	--print(d and e or nil) -- Same as the first one
+	--print(e or nil) -- "x" for both
+	--print(d and e) -- mine prints the address of "print"
+
+	--local a, b, c = 1, 2
+	--c = a and b
+	--print(c) -- Prints nil on my compiler.
+
+	--local a, b, c = 1, 2
+	--c = a or b
+	--print(c) -- Prints "1" for both.
+
+	--local a, i = {}, 1
+	--repeat
+	--	local x = i
+	--	a[i] = function () i = x+1; print(x, i); return x end
+	--	print(i > 10 or a[i]() ~= x)
+	--	i = i - 1
+	--until i > 10 or a[i]() ~= x
+
+	--if 1 > 2 or 2 > 10 then
+	if false or false then
+		print("ok")
+	end
+
+	--print(1 > 10 or 2 ~= 2)
+
+	--local a, i = {}, 1
+	--repeat
+	--	local x = i
+	--	a[i] = function () i = x+1; return x end
+	--	print(x, i)
+	--until i > 10 or a[i]() ~= x
+	--print(i, a[1], a[3])
+	--print(i == 11, a[1]() == 1, a[3]() == 3, i == 4)
+	--i = 11
+	--assert(i == 11 and a[1]() == 1 and a[3]() == 3 and i == 4)
+
+	--local a = {}
+	--local i = 1
+	--a[1] = function() i = 2 return 1 end
+	--a[3] = function() return 3 end
+	--assert(i == 1 and a[1]() == 1 and a[3]() == 3 and i == 2)
+
 	`
 
 	run := true
 	luac := true
 
-	//luac = false
+	luac = false
 
 	var err error
 

@@ -27,6 +27,8 @@ import "github.com/milochristiansen/lua/luautil"
 import "sliceutil" // a quick-and-dirty reflection-based slice library (I use it to make stacks, lazy me).
 import "fmt"
 
+//import "runtime"
+
 // TODO: Error messages are horrid and unhelpful. The AST is just sitting there, it should be possible to
 // turn that information into an error message that is VERY helpful and has every detail you could ever want...
 
@@ -146,6 +148,11 @@ func compSource(source, name string, line int) (f *funcProto, err error) {
 	// Quick-and-dirty error trapping.
 	defer func() {
 		if x := recover(); x != nil {
+			//fmt.Println("Stack Trace:")
+			//buf := make([]byte, 4096)
+			//buf = buf[:runtime.Stack(buf, true)]
+			//fmt.Printf("%s\n", buf)
+
 			switch e := x.(type) {
 			case luautil.Error:
 				err = e
@@ -249,10 +256,14 @@ func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 
 	// Issue a dummy JMP to close any upvalues if needed.
 	// What ever happened to the CLOSE instruction? Using JMP seems weird.
+	line := 0
+	if len(block) != 0 {
+		line = block[len(block)-1].Line()
+	}
 	if len(state.blocks) != 0 && stuff.hasUp {
-		state.addInst(createAsBx(opJump, state.nextReg+1, off), block[len(block)-1].Line())
+		state.addInst(createAsBx(opJump, state.nextReg+1, off), line)
 	} else if off != 0 {
-		state.addInst(createAsBx(opJump, 0, off), block[len(block)-1].Line())
+		state.addInst(createAsBx(opJump, 0, off), line)
 	}
 
 	// Resolve this block's labels
@@ -501,9 +512,9 @@ func statement(n ast.Stmt, state *compState) {
 		list, k := expr(nn.Cond, state, state.nextReg, false).Bool()
 		if list == nil {
 			if k {
-				closeBlock(nn.Block, state, 0, mkoffset(len(state.f.code), begin))
-			} else {
 				closeBlock(nn.Block, state, 0, 0)
+			} else {
+				closeBlock(nn.Block, state, 0, mkoffset(len(state.f.code), begin))
 			}
 		} else {
 			closeBlock(nn.Block, state, 0, 0)
