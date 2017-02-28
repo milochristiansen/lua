@@ -26,8 +26,6 @@ func main() {
 
 	l := lua.NewState()
 
-	l.NativeTrace = true
-
 	l.Push(lmodbase.Open)
 	l.Call(0, 0)
 
@@ -385,9 +383,9 @@ func main() {
 	--until i > 10 or a[i]() ~= x
 
 	--if 1 > 2 or 2 > 10 then
-	if false or false then
-		print("ok")
-	end
+	--if false or false then
+	--	print("ok")
+	--end
 
 	--print(1 > 10 or 2 ~= 2)
 
@@ -402,31 +400,47 @@ func main() {
 	--i = 11
 	--assert(i == 11 and a[1]() == 1 and a[3]() == 3 and i == 4)
 
-	--local a = {}
-	--local i = 1
-	--a[1] = function() i = 2 return 1 end
-	--a[3] = function() return 3 end
-	--assert(i == 1 and a[1]() == 1 and a[3]() == 3 and i == 2)
+	--local a, t = {}, {}
+	--function f (x, ...) return x, {...} end
+	--t.__call = f
+	--setmetatable(a, t)
+	--local x,y = a(table.unpack{'a', 1})
+	--assert(x==a and y[1]=='a' and y[2]==1 and y[3]==nil)
+	--x,y = a()
+	--assert(x==a and y[1]==nil)
 
+a = {}
+rawset(a, "x", 1, 2, 3)
+assert(a.x == 1 and rawget(a, "x", 3) == 1)
 	`
 
 	run := true
+	list := true
 	luac := true
 
+	// Easier to uncomment than change the value
+	//run = false
+	list = false
 	luac = false
+
+	//l.NativeTrace = true
 
 	var err error
 
 	if luac {
-		l.Println("luac:")
+		l.Println("Build luac:")
 		err = l.LoadTextExternal(strings.NewReader(script), "test.go", 0)
 		if err != nil {
 
 			fmt.Println(err)
 			return
+		} else {
+			l.Println("Build OK.")
 		}
 
-		l.ListFunc(-1)
+		if list {
+			l.ListFunc(-1)
+		}
 
 		if run {
 			l.Println("\nRun luac:")
@@ -440,14 +454,18 @@ func main() {
 		}
 	}
 
-	l.Println("\ngithub.com/milochristiansen/lua:")
+	l.Println("\nBuild github.com/milochristiansen/lua:")
 	err = l.LoadText(strings.NewReader(script), "test.go", 0)
 	if err != nil {
 		fmt.Println(err)
 		return
+	} else {
+		l.Println("Build OK.")
 	}
 
-	l.ListFunc(-1)
+	if list {
+		l.ListFunc(-1)
+	}
 
 	if run {
 		l.Println("\nRun github.com/milochristiansen/lua:")

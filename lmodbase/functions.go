@@ -224,6 +224,7 @@ var functions = map[string]lua.NativeFunction{
 		return 1
 	},
 	"rawget": func(l *lua.State) int {
+		l.PushIndex(2)
 		l.GetTableRaw(1)
 		return 1
 	},
@@ -232,6 +233,8 @@ var functions = map[string]lua.NativeFunction{
 		return 1
 	},
 	"rawset": func(l *lua.State) int {
+		l.PushIndex(2)
+		l.PushIndex(3)
 		l.SetTableRaw(1)
 		return 0
 	},

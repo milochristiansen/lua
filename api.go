@@ -640,9 +640,20 @@ func (l *State) ConvertNumber(i int) {
 
 // ConvertString gets the value at the given index and converts it to a string
 // then pushes the result.
+// This will call a __tostring metamethod if provided. If a metamethod is called the result
+// may or may not be a string.
+//
+// This is safe if no metamethods are called, but may panic if the metamethod errors out.
 func (l *State) ConvertString(i int) {
-	s := l.ToString(i)
-	l.Push(s)
+	v := l.get(i)
+
+	meth := l.hasMetaMethod(v, "__tostring")
+	if meth != nil {
+		l.Push(meth)
+		l.Push(v)
+		l.Call(1, 1)
+	}
+	toString(v)
 }
 
 // DumpFunction converts the Lua function at the given index to a binary chunk. The returned value may
@@ -701,10 +712,11 @@ func (l *State) GetMetaTable(i int) bool {
 // If you try to set a metatable that is not a table or try to pass an invalid type this will raise an error.
 func (l *State) SetMetaTable(i int) {
 	v := l.get(i)
-	tbl, ok := l.stack.Get(-1).(*table)
+	t := l.stack.Get(-1)
+	tbl, ok := t.(*table)
 	l.stack.Pop(1)
-	if !ok {
-		luautil.Raise("Value is not a table.", luautil.ErrTypGenRuntime)
+	if !ok && t != nil {
+		luautil.Raise("Value is not a table or nil.", luautil.ErrTypGenRuntime)
 	}
 
 	switch v2 := v.(type) {

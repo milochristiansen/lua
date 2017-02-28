@@ -22,9 +22,15 @@ misrepresented as being the original software.
 
 package ast
 
+//import "fmt"
+
 // Lots of unexported stuff to prevent generation and insertion of invalid/unexpected Node types.
 // If you want to use this with a different Lua version it would probably be better to make a copy
 // and add what you need directly instead of trying to inject what you need.
+
+// I have been told these types format well as JSON, but AFAIK this will strip all line information.
+// Sorry, I never considered marshaling to text when I designed this...
+// It may be possible to change nodeBase to fix this somehow.
 
 // Node represents an item in the AST.
 type Node interface {
@@ -34,12 +40,12 @@ type Node interface {
 }
 
 type nodeBase struct {
-	line int
+	Ln int
 }
 
 func (n *nodeBase) nodeMark()     {}
-func (n *nodeBase) Line() int     { return n.line }
-func (n *nodeBase) setLine(l int) { n.line = l }
+func (n *nodeBase) Line() int     { return n.Ln }
+func (n *nodeBase) setLine(l int) { n.Ln = l }
 
 // Stmt represents a statement Node.
 type Stmt interface {

@@ -39,6 +39,8 @@ type callFrame struct {
 	// In this case all stack operation must be offset by nArgs to prevent the arguments from being clobbered.
 	holdArgs bool
 
+	// The number of arguments passed in. In the case of a variadic function this will be the number of passed in
+	// arguments minus the number of named arguments the function has.
 	nArgs   int
 	nRet    int // The number of items expected
 	retC    int // The actual number of items returned

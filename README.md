@@ -151,11 +151,9 @@ Lua implementation does not follow the specification exactly:
 * The `#` (length) operator always returns the exact length of a (table) sequence, not the total length of the array
   portion of the table. See the comment in `table.go` (about halfway down) for more details (including quotes from the
   spec and examples).
-* The reference Lua compiler/VM does some really weird things with the modulo operator. For example: `-3 % 5 == 2` Every
-  other calculator or programming language I chose to feed this to reported: `-3 % 5 == -3` (but `5 % -3 == 2`, so it
-  seems like Lua reverses the operands?). It seems Lua only reports weird results when one of the operands is negative?
-  There is nothing in the spec that implies this is correct behavior, so I am guessing that it is simply a bug. Needless
-  to say I simply use the Go modulus operator (so I get the correct result rather than the weird one Lua gets).
+* My modulo operator (`%`) is implemented the same way most languages implement it, not the way Lua does. This does not
+  matter unless you are using negative operands, in which case it may not provide the results a Lua programmer may expect
+  (although C or Go programmers will be fine :P).
 
 
 * * *
@@ -201,9 +199,12 @@ The list is (roughly) in priority order.
 * Write better stack traces for errors.
 * Improve compilation of `and` and `or`.
 * Fix jumping to a label at the end of a block.
+* Fix `CONCAT` so it performs better when there is a value with a `__concat` metamethod.
 * (vendor/sliceutil) Replace that terrible hack I use for a stack library with proper stack types.
 * (supermeta) Look into allowing scripts to call functions/methods. It's certainly possible, but possibly difficult
   (possible not as difficult as I think).
+* Marshaling the AST as XML works poorly at best. The main problem is that some items retain their type info, and others
+  have it stripped in favor of their parent field name.
 
 
 Changes:
@@ -221,6 +222,50 @@ noise, each change listed here will list the files I modified for that change.
 
 (please don't bug me about using version control, I *do* use version control. I just use a custom type designed for
 single person teams, where the only important use is rolling back bad changes and such)
+
+
+* * *
+
+1.1.2
+
+More script tests, but no real compiler bugs this time. Instead I found several minor issues with a few of the API functions
+and a few other miscellaneous VM issues (mostly related to metatables).
+
+This version also adds a minor new feature, nothing to get excited about... Basically I made it so that JSON or XML encoding
+an AST produces slightly more readable results for operator expression nodes. Someone else suggested the idea (actually they
+submitted a patch, yay them!). I never would have thought to do this myself (never needed it), but now that I have it, it
+seems like it could be useful for debugging the compiler amoung other things.
+
+Unfortunately due to the way the AST and most encodings work, it is impossible to unmarshal the AST. I am not 100% sure if
+it is possible with XML or not, but it certainly will not work with JSON. This could maybe be fixed, but would be way too
+much work.
+
+Anyway, these improvements are still useful if you want to examine the AST for whatever reason...
+
+
+* Added another set of script tests. (script_test.go)
+* Fixed the `tostring` script function and the `ConvertString` API function so they pass the return value from a
+  `_tostring` metamethod through unchanged (instead of converting the result to a string, for example `"nil"`). (api.go)
+* You may now use `nil` as a metatable value for the `SetMetaTable` API function (and the `setmetatable` script
+  function). (api.go)
+* Made some changes to the compiler tester so it is easier to tweak the output for specific error types (for example it is
+  now possible to suppress the assembly listing). (test.go)
+* Fixed variadic functions that also have named parameters (this was an issue with the new stack frame code, not the compiler).
+  (stack.go)
+* Fixed comparisons of non-matching types via metamethods, before if the types did not match the comparison would always fail
+  (I must have been sleep deprived when I wrote that bit). (value.go)
+* Changed the way greater-than and greater-than or equals (`>` and `>=`) where implemented. The old way was `2 > 1 == !(2 <= 1)`
+  and `2 >= 1 == !(2 < 1)`, the new way is `2 > 1 == 1 < 2` and `2 >= 1 == 1 <= 2`. The old way worked fine (and was slightly
+  easier to implement), but it was not what the spec required (and so could cause problems with metamethods). (compile_expr.go)
+* Changed the way the `CONCAT` instruction is implemented so that the `__concat` metamethod works correctly. **Warning:** using
+  `__concat` even once will cause string concatenation performance to nosedive for that group of concatenation operations! (vm.go)
+* Fixed the `rawset` and `rawget` script functions so they ignore extra arguments. (lmodbase/functions.go)
+* Values with a `__newindex` metamethod that is a table now properly use a regular set (triggers metamethods) when indexing this
+  table. I'm not sure how I missed this, I did it properly for gets (`__index`). (value.go)
+* AST operator type constants now marshal and unmarshal as text rather than raw (more-or-less meaningless) integers. Also
+  when printed via `fmt` functions they should use text names by default. (ast/expr.go, commit by "erizocosmico")
+* When encoded as JSON, each Node now has an extra key named after the node type that contains an object with all fields
+  common to all nodes (namely the line number). This greatly enhances readability of a JSON encoded AST. (ast/ast.go)
 
 
 * * *

@@ -288,51 +288,59 @@ func init() {
 		func(l *State, i instruction) bool {
 			b, c := i.b(), i.c()
 
-			var buff *bytes.Buffer
-			concat := func(v1, v2 value) {
-				meth := l.hasMetaMethod(v1, "__concat")
+			// Try the fast path (assumes no metamethods will be needed).
+			buff, k := new(bytes.Buffer), b
+			for {
+				v := l.stack.Get(k)
+				if t := typeOf(v); t != TypString && t != TypNumber {
+					// Fast path not possible, throw away our work so far and go with the slow version
+					break
+				}
+				buff.WriteString(toStringConcat(v))
+
+				k++
+				if k > c {
+					l.stack.Set(i.a(), buff.String())
+					return false
+				}
+			}
+
+			// Screw performance, I just want this stupid thing to work.
+			// A __concat metamethod is a really bad idea. If you want good performance you need really clever code.
+			// If they had just used __tostring instead, worst-case allocation and copying could be cut tremendously.
+			var sa, sb value
+			concat := func() {
+				if t1, t2 := typeOf(sa), typeOf(sb); (t1 == TypString || t1 == TypNumber) && (t2 == TypString || t2 == TypNumber) {
+					sb = toStringConcat(sa) + toStringConcat(sb)
+					return
+				}
+
+				meth := l.hasMetaMethod(sa, "__concat")
 				if meth == nil {
-					meth = l.hasMetaMethod(v2, "__concat")
+					meth = l.hasMetaMethod(sb, "__concat")
 					if meth == nil {
-						toStringConcat(v1) // For the error message
-						toStringConcat(v2)
+						toStringConcat(sa) // For the error message
+						toStringConcat(sb)
 						panic("UNREACHABLE")
 					}
 				}
 
 				l.Push(meth)
-				l.Push(v1)
-				l.Push(v2)
+				l.Push(sa)
+				l.Push(sb)
 				l.Call(2, 1)
-				rtn := l.stack.Get(-1)
+				sb = l.stack.Get(-1)
 				l.Pop(1)
-				buff = bytes.NewBufferString(toStringConcat(rtn))
 			}
 
-			k := b
-			v := l.stack.Get(k)
-			if t := typeOf(v); t == TypString || t == TypNumber {
-				buff = bytes.NewBufferString(toStringConcat(v))
-			} else {
-				k++
-				if k > c {
-					luautil.Raise("CONCAT called with a range of less than 2 registers.", luautil.ErrTypMajorInternal)
-				}
-				v2 := l.stack.Get(k)
-
-				concat(v, v2)
+			k = c - 1
+			sb = l.stack.Get(c)
+			for ; k >= b; k-- {
+				sa = l.stack.Get(k)
+				concat()
 			}
-			k++
+			l.stack.Set(i.a(), sb)
 
-			for ; k <= c; k++ {
-				v := l.stack.Get(k)
-				if t := typeOf(v); t == TypString || t == TypNumber {
-					buff.WriteString(toStringConcat(v))
-					continue
-				}
-				concat(buff.String(), v)
-			}
-			l.stack.Set(i.a(), buff.String())
 			return false
 		},
 

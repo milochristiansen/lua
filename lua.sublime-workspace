@@ -4,6 +4,18 @@
 		"selected_items":
 		[
 			[
+				"op",
+				"opTyp\tint ʈ"
+			],
+			[
+				"c",
+				"boolCanR\tbool ν"
+			],
+			[
+				"func",
+				"func\tfunc {...} ʂ"
+			],
+			[
 				"if",
 				"ife\tif err != nil { ... } ʂ"
 			],
@@ -67,7 +79,7 @@
 			"file": "README.md",
 			"settings":
 			{
-				"buffer_size": 20652,
+				"buffer_size": 25199,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -76,7 +88,25 @@
 			"file": "api.go",
 			"settings":
 			{
-				"buffer_size": 32621,
+				"buffer_size": 32967,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "test.go",
+			"settings":
+			{
+				"buffer_size": 9218,
+				"encoding": "UTF-8",
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "script_test.go",
+			"settings":
+			{
+				"buffer_size": 31267,
 				"encoding": "UTF-8",
 				"line_ending": "Unix"
 			}
@@ -122,6 +152,49 @@
 	],
 	"file_history":
 	[
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/ast/ast.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/ast/optyp.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/ast/expr.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/lmodbase/functions.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/vm.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/value.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/stack.go",
+		"/C/lua-5.3.2/src/lbaselib.c",
+		"/C/lua-5.3.2/src/lvm.c",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/compile_expr.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/callframe.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/function.go",
+		"/C/go/misc/cgo/life/main.go",
+		"/C/go/misc/cgo/life/main.out",
+		"/C/go/misc/cgo/fortran/test.bash",
+		"/C/go/misc/cgo/fortran/answer.f90",
+		"/C/go/misc/chrome/gophertool/README.txt",
+		"/C/go/misc/git/pre-commit",
+		"/C/go/misc/linkcheck/linkcheck.go",
+		"/C/go/misc/sortac/sortac.go",
+		"/C/go/misc/ios/README",
+		"/C/Users/Milo/Desktop/lua-5.3.3-tests/events.lua",
+		"/C/Users/Milo/Desktop/lua-5.3.3-tests/errors.lua",
+		"/C/Users/Milo/Desktop/lua-5.3.3-tests/db.lua",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/ast/parse.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/ast/parse_expr.go",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/compile.go",
+		"/Y/@GMT-2017.01.22-04.00.00/Projects/Go/src/github.com/milochristiansen/lua/compile_expr.go",
+		"/C/lua-5.3.2/src/lvm.h",
+		"/C/lua-5.3.2/src/lparser.h",
+		"/C/lua-5.3.2/src/lcode.c",
+		"/C/lua-5.3.2/src/lcode.h",
+		"/Y/Projects/Go/src/github.com/milochristiansen/lua/testhelp/testhelp.go",
+		"/C/Users/Milo/Documents/Egosoft/X Rebirth/1638/save/save_001.xml",
+		"/C/Users/Milo/AppData/Local/Temp/7zO40F5.tmp/save_001.xml",
+		"/C/Games/X3 XRM/addon/t/7054-L044.xml",
+		"/C/Users/Milo/AppData/Local/Temp/7zO469C.tmp/TShips.txt",
+		"/C/Users/Milo/AppData/Local/Temp/7zO8414.tmp/7054-L044.xml",
+		"/C/lua-5.3.2/src/lparser.c",
+		"/C/lua-5.3.2/src/lopcodes.c",
+		"/y/projects/go/src/github.com/milochristiansen/lua/testhelp.go",
+		"/C/Users/Milo/Desktop/lua-5.3.3-tests/constructs.lua",
+		"/C/Users/Milo/Desktop/lua-5.3.3-tests/code.lua",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/state.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/supermeta/script_test.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/supermeta/tables.go",
@@ -129,15 +202,12 @@
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/something_borrowed/diff_match_patch/__init__.py",
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/CHANGELOG.md",
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/AUTHORS.md",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/vm.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/example_test.go",
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/9o.md",
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/USAGE.md",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/value.go",
 		"/Y/Projects/Go/src/dctech/rhino/genii/struct.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/api_test.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/script_test.go",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/testhelp/testhelp.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/luautil/testhelper.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/luautil/errors.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/luautil/strconv.go",
@@ -163,12 +233,8 @@
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/articles/golint.md",
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/doc/autoinst.md",
 		"/C/Users/Milo/AppData/Roaming/Sublime Text 3/Packages/GoSublime/README.md",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/ast/ast.go",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/compile.go",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/compile_expr.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/dumpbin.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/fib_test.go",
-		"/Y/Projects/Go/src/github.com/milochristiansen/lua/callframe.go",
 		"/Y/Projects/Go/src/github.com/milochristiansen/lua/api.go",
 		"/Y/Projects/Go/src/DeskAdv/dump_legacy.go",
 		"/Y/Projects/Go/src/DeskAdv/dta_format.go",
@@ -224,6 +290,9 @@
 		"case_sensitive": true,
 		"find_history":
 		[
+			"OP_CONCAT",
+			"holdArgs",
+			"LE",
 			"print",
 			"TODO:",
 			"ErrBadConv",
@@ -285,7 +354,7 @@
 	"groups":
 	[
 		{
-			"selected": 1,
+			"selected": 0,
 			"sheets":
 			[
 				{
@@ -294,15 +363,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 20652,
+						"buffer_size": 25199,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								11836,
-								11836
+								14132,
+								14132
 							]
 						],
 						"settings":
@@ -312,10 +381,10 @@
 							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 3863.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 1,
+					"stack_index": 0,
 					"type": "text"
 				},
 				{
@@ -324,15 +393,15 @@
 					"semi_transient": false,
 					"settings":
 					{
-						"buffer_size": 32621,
+						"buffer_size": 32967,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								856,
-								856
+								11081,
+								11089
 							]
 						],
 						"settings":
@@ -346,10 +415,68 @@
 							"word_wrap": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 619.0,
 						"zoom_level": 1.0
 					},
-					"stack_index": 0,
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "test.go",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 9218,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								8181,
+								8181
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/GoSublime/syntax/GoSublime-Go.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 7131.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "script_test.go",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 31267,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								30583,
+								30583
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/GoSublime/syntax/GoSublime-Go.tmLanguage",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 21981.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 3,
 					"type": "text"
 				}
 			]
@@ -392,11 +519,19 @@
 	},
 	"output.9o://Y:\\Projects\\Go\\src\\github.com\\milochristiansen\\lua":
 	{
+		"height": 233.0
+	},
+	"output.9o://Y:\\Projects\\Go\\src\\github.com\\milochristiansen\\lua\\ast":
+	{
 		"height": 118.0
 	},
 	"output.9o://Y:\\Projects\\Go\\src\\github.com\\milochristiansen\\lua\\supermeta":
 	{
 		"height": 185.0
+	},
+	"output.9o://Y:\\Projects\\Go\\src\\github.com\\milochristiansen\\lua\\testhelp":
+	{
+		"height": 118.0
 	},
 	"output.find_results":
 	{

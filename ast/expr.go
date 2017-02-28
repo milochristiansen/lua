@@ -105,7 +105,7 @@ func (o opTyp) String() string {
 
 // Operator represents an operator and it's operands.
 type Operator struct {
-	exprBase
+	exprBase `json:"Operator"`
 
 	Op    opTyp
 	Left  Expr // Nil if operator is unary
@@ -115,7 +115,7 @@ type Operator struct {
 // FuncCall represents a function call.
 // This has the unique property of being both a Stmt and an Expr.
 type FuncCall struct {
-	exprBase
+	exprBase `json:"FuncCall"`
 
 	Receiver Expr // The call receiver if any (the part before the ':')
 	Function Expr // The function value itself, if Receiver is provided this is the part *after* the colon, else it is the whole name.
@@ -126,7 +126,7 @@ func (s *FuncCall) stmtMark() {}
 
 // FuncDecl represents a function declaration.
 type FuncDecl struct {
-	exprBase
+	exprBase `json:"FuncDecl"`
 
 	Params     []string
 	IsVariadic bool
@@ -138,7 +138,7 @@ type FuncDecl struct {
 
 // TableConstructor represents a table constructor.
 type TableConstructor struct {
-	exprBase
+	exprBase `json:"TableConstructor"`
 
 	Keys []Expr // A nil key for a particular position means that no key was given.
 	Vals []Expr
@@ -146,7 +146,7 @@ type TableConstructor struct {
 
 // TableAccessor represents a table access expression, one of `a.b` or `a[b]`.
 type TableAccessor struct {
-	exprBase
+	exprBase `json:"TableAccessor"`
 
 	Obj Expr
 	Key Expr
@@ -154,52 +154,52 @@ type TableAccessor struct {
 
 // Parens represents a pair of parenthesis and the expression inside of them.
 type Parens struct {
-	exprBase
+	exprBase `json:"Parens"`
 
 	Inner Expr
 }
 
 // ConstInt stores an integer constant.
 type ConstInt struct {
-	exprBase
+	exprBase `json:"ConstInt"`
 
 	Value string
 }
 
 // ConstFloat stores a floating point constant.
 type ConstFloat struct {
-	exprBase
+	exprBase `json:"ConstFloat"`
 
 	Value string
 }
 
 // ConstString stores a string constant.
 type ConstString struct {
-	exprBase
+	exprBase `json:"ConstString"`
 
 	Value string
 }
 
 // ConstIdent stores an identifier constant.
 type ConstIdent struct {
-	exprBase
+	exprBase `json:"ConstIdent"`
 
 	Value string
 }
 
 // ConstBool represents a boolean constant.
 type ConstBool struct {
-	exprBase
+	exprBase `json:"ConstBool"`
 
 	Value bool
 }
 
 // ConstNil represents the constant "nil".
 type ConstNil struct {
-	exprBase
+	exprBase `json:"ConstNil"`
 }
 
 // ConstVariadic represents the variadic expression element (...).
 type ConstVariadic struct {
-	exprBase
+	exprBase `json:"ConstVariadic"`
 }

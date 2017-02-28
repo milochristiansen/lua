@@ -364,13 +364,37 @@ func (stk *stack) AddFrame(fn *function, fi, args, rtns int) {
 		luautil.Raise("Invalid argument count for AddFrame.", luautil.ErrTypMajorInternal)
 	}
 
+	holdArgs := fn.native == nil && fn.proto.isVarArg == 1
+	if holdArgs && fn.proto.parameterCount != 0 {
+		// Shift parameterCount items from bottom of frame to top of frame, preserving order
+
+		// First copy the named items above the variadic items
+		named := fn.proto.parameterCount
+		for i := 0; i < named; i++ {
+			stk.ensure(base + 1 + i + args)
+			stk.data[base+1+i+args] = stk.data[base+1+i]
+		}
+
+		// then shift all the items down
+		for i := 0; i < args; i++ {
+			stk.data[base+1+i] = stk.data[base+1+i+named]
+		}
+		for i := base + 1 + args; i < len(stk.data); i++ {
+			stk.data[i] = nil
+		}
+		stk.data = stk.data[:base+args+1]
+
+		// Adjust argument count so it only covers the variadic parameters
+		args -= named
+	}
+
 	frame := &callFrame{
 		fn:  fn,
 		stk: stk,
 
 		base: base,
 
-		holdArgs: fn.native == nil && fn.proto.isVarArg == 1,
+		holdArgs: holdArgs,
 
 		nArgs:   args,
 		nRet:    rtns,
@@ -405,7 +429,33 @@ func (stk *stack) TailFrame(fn *function, fi, args int) {
 
 	frame.holdArgs = fn.native == nil && fn.proto.isVarArg == 1
 
-	frame.nArgs = args
+	adargs := args
+	if frame.holdArgs && fn.proto.parameterCount != 0 {
+		// Shift parameterCount items from bottom of frame to top of frame, preserving order
+
+		named := fn.proto.parameterCount
+		ab := segC + 1 + fi + 1 // args base (index of first arg)
+
+		// Copy the named items above the variadic items
+		for i := 0; i < named; i++ {
+			stk.ensure(ab + i + args)
+			stk.data[ab+i+args] = stk.data[ab+i]
+		}
+
+		// then shift all the items down
+		for i := 0; i < args; i++ {
+			stk.data[ab+i] = stk.data[ab+i+named]
+		}
+		for i := ab + args; i < len(stk.data); i++ {
+			stk.data[i] = nil
+		}
+		stk.data = stk.data[:ab+args]
+
+		// Adjust argument count so it only covers the variadic parameters
+		adargs -= named
+	}
+
+	frame.nArgs = adargs
 	frame.nRet = -1
 	frame.retBase = -1
 	// frame.retTo = fi // No touch! This is the index in the PREVIOUS FRAME, not the current frame!

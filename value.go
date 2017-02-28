@@ -340,7 +340,7 @@ func (l *State) setTable(t, k, v value) {
 	meth := l.hasMetaMethod(t, "__newindex")
 	if meth != nil {
 		if t, ok := meth.(*table); ok {
-			t.SetRaw(k, v)
+			l.setTable(t, k, v)
 			return
 		}
 
@@ -598,11 +598,11 @@ try:
 
 	l.Push(meta)
 	if tryLEHack {
-		l.Push(a)
 		l.Push(b)
+		l.Push(a)
 	} else {
-		l.Push(b)
 		l.Push(a)
+		l.Push(b)
 	}
 	l.Call(2, 1)
 	rtn := toBool(l.stack.Get(-1))
@@ -614,36 +614,39 @@ try:
 }
 
 func (l *State) compare(op opCode, a, b value, raw bool) bool {
+	tm := true
 	t := typeOf(a)
 	if t != typeOf(b) {
-		return false
+		tm = false
 	}
 
 	switch op {
 	case OpEqual:
-		switch t {
-		case TypNil:
-			return true // Obviously.
-		case TypNumber:
-			ia, oka := a.(int64)
-			ib, okb := b.(int64)
-			if oka && okb {
-				return ia == ib
+		if tm {
+			switch t {
+			case TypNil:
+				return true // Obviously.
+			case TypNumber:
+				ia, oka := a.(int64)
+				ib, okb := b.(int64)
+				if oka && okb {
+					return ia == ib
+				}
+
+				fa, oka := a.(float64)
+				fb, okb := b.(float64)
+				if oka && okb {
+					return fa == fb
+				}
+
+				// Weird, but this is what the reference implementation does.
+				return toInt(a) == toInt(b)
+
+			case TypString:
+				return a.(string) == b.(string)
+			case TypBool:
+				return a.(bool) == b.(bool)
 			}
-
-			fa, oka := a.(float64)
-			fb, okb := b.(float64)
-			if oka && okb {
-				return fa == fb
-			}
-
-			// Weird, but this is what the reference implementation does.
-			return toInt(a) == toInt(b)
-
-		case TypString:
-			return a.(string) == b.(string)
-		case TypBool:
-			return a.(bool) == b.(bool)
 		}
 
 		if raw {
@@ -652,25 +655,27 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 		return l.tryCmpMeta(op, a, b)
 
 	case OpLessThan:
-		switch t {
-		case TypNumber:
-			ia, oka := a.(int64)
-			ib, okb := b.(int64)
-			if oka && okb {
-				return ia < ib
+		if tm {
+			switch t {
+			case TypNumber:
+				ia, oka := a.(int64)
+				ib, okb := b.(int64)
+				if oka && okb {
+					return ia < ib
+				}
+
+				fa, oka := a.(float64)
+				fb, okb := b.(float64)
+				if oka && okb {
+					return fa < fb
+				}
+
+				// Weird, but this is what the reference implementation does.
+				return toInt(a) < toInt(b)
+
+			case TypString:
+				return a.(string) < b.(string) // Fix me, should be locale sensitive, not lexical
 			}
-
-			fa, oka := a.(float64)
-			fb, okb := b.(float64)
-			if oka && okb {
-				return fa < fb
-			}
-
-			// Weird, but this is what the reference implementation does.
-			return toInt(a) < toInt(b)
-
-		case TypString:
-			return a.(string) < b.(string) // Fix me, should be locale sensitive, not lexical
 		}
 
 		if raw {
@@ -679,25 +684,27 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 		return l.tryCmpMeta(op, a, b)
 
 	case OpLessOrEqual:
-		switch t {
-		case TypNumber:
-			ia, oka := a.(int64)
-			ib, okb := b.(int64)
-			if oka && okb {
-				return ia <= ib
+		if tm {
+			switch t {
+			case TypNumber:
+				ia, oka := a.(int64)
+				ib, okb := b.(int64)
+				if oka && okb {
+					return ia <= ib
+				}
+
+				fa, oka := a.(float64)
+				fb, okb := b.(float64)
+				if oka && okb {
+					return fa <= fb
+				}
+
+				// Weird, but this is what the reference implementation does.
+				return toInt(a) <= toInt(b)
+
+			case TypString:
+				return a.(string) <= b.(string) // Fix me, should be locale sensitive, not lexical
 			}
-
-			fa, oka := a.(float64)
-			fb, okb := b.(float64)
-			if oka && okb {
-				return fa <= fb
-			}
-
-			// Weird, but this is what the reference implementation does.
-			return toInt(a) <= toInt(b)
-
-		case TypString:
-			return a.(string) <= b.(string) // Fix me, should be locale sensitive, not lexical
 		}
 
 		if raw {

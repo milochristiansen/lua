@@ -56,7 +56,7 @@ func (f funcProto) String() string {
 
 func (f funcProto) str(prefix string) string {
 	out := new(bytes.Buffer)
-	fmt.Fprintf(out, "%v:%v:%v\n", f.source, f.lineDefined, f.lastLineDefined)
+	fmt.Fprintf(out, "%v:%v:%v pcnt: %v varg: %v\n", f.source, f.lineDefined, f.lastLineDefined, f.parameterCount, f.isVarArg)
 
 	w := tabwriter.NewWriter(out, 2, 8, 2, ' ', 0)
 	_ = w

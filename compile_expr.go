@@ -554,9 +554,9 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpGreaterThan:
-			sense := 1
+			sense := 0
 			if boolRev {
-				sense = 0
+				sense = 1
 			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
 			r := reg
@@ -564,13 +564,13 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 				r++
 			}
 			r, _ = expr(ee.Right, state, r, false).RK()
-			state.addInst(createABC(OpLessOrEqual, sense, l, r), ee.Line())
+			state.addInst(createABC(OpLessThan, sense, r, l), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 		case ast.OpGreaterOrEqual:
-			sense := 1
+			sense := 0
 			if boolRev {
-				sense = 0
+				sense = 1
 			}
 			l, lu := expr(ee.Left, state, reg, false).RK()
 			r := reg
@@ -578,7 +578,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 				r++
 			}
 			r, _ = expr(ee.Right, state, r, false).RK()
-			state.addInst(createABC(OpLessThan, sense, l, r), ee.Line())
+			state.addInst(createABC(OpLessOrEqual, sense, r, l), ee.Line())
 			rtn.boolean = patchList([]int{len(state.f.code)})
 			state.addInst(createAsBx(opJump, 0, 0), ee.Line())
 

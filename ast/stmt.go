@@ -24,7 +24,7 @@ package ast
 
 // Assign represents an assignment statement.
 type Assign struct {
-	stmtBase
+	stmtBase `json:"Assign"`
 
 	// Is this a local variable declaration statement?
 	LocalDecl bool
@@ -40,7 +40,7 @@ type Assign struct {
 
 // DoBlock represents a do block (do ... end).
 type DoBlock struct {
-	stmtBase
+	stmtBase `json:"DoBlock"`
 
 	Block []Stmt
 }
@@ -48,7 +48,7 @@ type DoBlock struct {
 // If represents an if statement.
 // 'elseif' statements are encoded as nested if statements.
 type If struct {
-	stmtBase
+	stmtBase `json:"If"`
 
 	Cond Expr
 	Then []Stmt
@@ -57,7 +57,7 @@ type If struct {
 
 // WhileLoop represents a while loop.
 type WhileLoop struct {
-	stmtBase
+	stmtBase `json:"WhileLoop"`
 
 	Cond  Expr
 	Block []Stmt
@@ -65,7 +65,7 @@ type WhileLoop struct {
 
 // RepeatUntilLoop represents a repeat-until loop.
 type RepeatUntilLoop struct {
-	stmtBase
+	stmtBase `json:"RepeatUntilLoop"`
 
 	Cond  Expr
 	Block []Stmt
@@ -73,7 +73,7 @@ type RepeatUntilLoop struct {
 
 // ForLoopNumeric represents a numeric for loop.
 type ForLoopNumeric struct {
-	stmtBase
+	stmtBase `json:"ForLoopNumeric"`
 
 	Counter string
 
@@ -86,7 +86,7 @@ type ForLoopNumeric struct {
 
 // ForLoopGeneric represents a generic for loop.
 type ForLoopGeneric struct {
-	stmtBase
+	stmtBase `json:"ForLoopGeneric"`
 
 	Locals []string
 	Init   []Expr // This will always be adjusted to three return results, but AFAIK there is no actual limit on expression count.
@@ -95,7 +95,7 @@ type ForLoopGeneric struct {
 }
 
 type Goto struct {
-	stmtBase
+	stmtBase `json:"Goto"`
 
 	// True if this Goto is actually a break statement. There is no matching label.
 	// If Label is not "break" then this is actually a continue statement (a custom
@@ -105,13 +105,13 @@ type Goto struct {
 }
 
 type Label struct {
-	stmtBase
+	stmtBase `json:"Label"`
 
 	Label string
 }
 
 type Return struct {
-	stmtBase
+	stmtBase `json:"Return"`
 
 	Items []Expr
 }
