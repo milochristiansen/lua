@@ -22,6 +22,8 @@ misrepresented as being the original software.
 
 package ast
 
+import "fmt"
+
 // Unexported to make it hard to generate impossible operators.
 type opTyp int
 
@@ -55,6 +57,51 @@ const (
 	OpAnd
 	OpOr
 )
+
+var opTypNames = [][]byte{
+	[]byte("OpAdd"),
+	[]byte("OpSub"),
+	[]byte("OpMul"),
+	[]byte("OpMod"),
+	[]byte("OpPow"),
+	[]byte("OpDiv"),
+	[]byte("OpIDiv"),
+	[]byte("OpBinAND"),
+	[]byte("OpBinOR"),
+	[]byte("OpBinXOR"),
+	[]byte("OpBinShiftL"),
+	[]byte("OpBinShiftR"),
+	[]byte("OpUMinus"),
+	[]byte("OpBinNot"),
+	[]byte("OpNot"),
+	[]byte("OpLength"),
+	[]byte("OpConcat"),
+	[]byte("OpEqual"),
+	[]byte("OpNotEqual"),
+	[]byte("OpLessThan"),
+	[]byte("OpGreaterThan"),
+	[]byte("OpLessOrEqual"),
+	[]byte("OpGreaterOrEqual"),
+	[]byte("OpAnd"),
+	[]byte("OpOr"),
+}
+
+func (o opTyp) MarshalText() ([]byte, error) {
+	op := int(o)
+	if len(opTypNames) <= op || op < 0 {
+		return nil, fmt.Errorf("invalid opTyp with value %d", op)
+	}
+
+	return opTypNames[int(o)], nil
+}
+
+func (o opTyp) String() string {
+	name, err := o.MarshalText()
+	if err != nil {
+		return "INVALID"
+	}
+	return string(name)
+}
 
 // Operator represents an operator and it's operands.
 type Operator struct {
