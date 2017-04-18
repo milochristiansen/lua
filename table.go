@@ -159,20 +159,21 @@ func (tbl *table) maybeExtend(key int) bool {
 }
 
 // Internal helper
-func (tbl *table) setInt(k int, v value) {
+func (tbl *table) setInt(k int64, v value) {
 	// Store the value or clear the key.
 	hash := false
-	k2 := k - TableIndexOffset
-	if k2 >= 0 && k2 < len(tbl.array) {
+	k2 := int(k) - TableIndexOffset
+	k2ok := int64(int(k)) == k
+	if k2ok && k2 >= 0 && k2 < len(tbl.array) {
 		tbl.array[k2] = v
-	} else if k2 >= 0 && v != nil && tbl.maybeExtend(k2) {
+	} else if k2ok && k2 >= 0 && v != nil && tbl.maybeExtend(k2) {
 		tbl.array[k2] = v
 	} else if v == nil {
 		hash = true
-		delete(tbl.hash, int64(k))
+		delete(tbl.hash, k)
 	} else {
 		hash = true
-		tbl.hash[int64(k)] = v
+		tbl.hash[k] = v
 	}
 
 	// Decide if the stored length was invalidated and fix it if possible.
@@ -211,25 +212,26 @@ func (tbl *table) Exists(k value) bool {
 			return false
 		}
 
-		if i := int(idx); float64(i) == idx {
+		if i := int64(idx); float64(i) == idx {
 			return tbl.existsInt(i)
 		}
 		v, ok := tbl.hash[k]
 		return ok && v != nil
 	case int64:
-		return tbl.existsInt(int(idx))
+		return tbl.existsInt(idx)
 	default:
 		v, ok := tbl.hash[k]
 		return ok && v != nil
 	}
 }
 
-func (tbl *table) existsInt(k int) bool {
-	k2 := k - TableIndexOffset
-	if 0 <= k2 && k2 < len(tbl.array) {
+func (tbl *table) existsInt(k int64) bool {
+	k2 := int(k) - TableIndexOffset
+	k2ok := int64(int(k)) == k
+	if k2ok && 0 <= k2 && k2 < len(tbl.array) {
 		return tbl.array[k2] != nil
 	}
-	v, ok := tbl.hash[int64(k)]
+	v, ok := tbl.hash[k]
 	return ok && v != nil
 }
 
@@ -243,7 +245,7 @@ func (tbl *table) SetRaw(k, v value) {
 			return
 		}
 
-		if i := int(idx); float64(i) == idx {
+		if i := int64(idx); float64(i) == idx {
 			tbl.setInt(i, v)
 		} else if v == nil {
 			delete(tbl.hash, k)
@@ -251,7 +253,7 @@ func (tbl *table) SetRaw(k, v value) {
 			tbl.hash[k] = v
 		}
 	case int64:
-		tbl.setInt(int(idx), v)
+		tbl.setInt(idx, v)
 	default:
 		if v == nil {
 			delete(tbl.hash, k)
@@ -262,12 +264,13 @@ func (tbl *table) SetRaw(k, v value) {
 }
 
 // Internal helper
-func (tbl *table) getInt(k int) value {
-	k2 := k - TableIndexOffset
-	if 0 <= k2 && k2 < len(tbl.array) {
+func (tbl *table) getInt(k int64) value {
+	k2 := int(k) - TableIndexOffset
+	k2ok := int64(int(k)) == k
+	if k2ok && 0 <= k2 && k2 < len(tbl.array) {
 		return tbl.array[k2]
 	}
-	return tbl.hash[int64(k)]
+	return tbl.hash[k]
 }
 
 // GetRaw reads the value at index k from the table without using any meta methods.
@@ -280,11 +283,11 @@ func (tbl *table) GetRaw(k value) value {
 			return nil
 		}
 
-		if i := int(idx); float64(i) == idx {
+		if i := int64(idx); float64(i) == idx {
 			return tbl.getInt(i)
 		}
 	case int64:
-		return tbl.getInt(int(idx))
+		return tbl.getInt(idx)
 	}
 	// Non-number or non-integral float.
 	return tbl.hash[k]

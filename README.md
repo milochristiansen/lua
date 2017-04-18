@@ -226,6 +226,16 @@ single person teams, where the only important use is rolling back bad changes an
 
 * * *
 
+1.1.3
+
+One of the tests was failing on 32 bit systems, now it isn't.
+
+* Integer table keys that fit into a script integer but not a system default int value will no longer be truncated sometimes.
+  Such keys were always supposed to go in the hash part of the table, but before this fix the keys were being truncated first
+  in some cases. (table.go)
+
+* * *
+
 1.1.2
 
 More script tests, but no real compiler bugs this time. Instead I found several minor issues with a few of the API functions
@@ -234,7 +244,7 @@ and a few other miscellaneous VM issues (mostly related to metatables).
 This version also adds a minor new feature, nothing to get excited about... Basically I made it so that JSON or XML encoding
 an AST produces slightly more readable results for operator expression nodes. Someone else suggested the idea (actually they
 submitted a patch, yay them!). I never would have thought to do this myself (never needed it), but now that I have it, it
-seems like it could be useful for debugging the compiler amoung other things.
+seems like it could be useful for debugging the compiler among other things.
 
 Unfortunately due to the way the AST and most encodings work, it is impossible to unmarshal the AST. I am not 100% sure if
 it is possible with XML or not, but it certainly will not work with JSON. This could maybe be fixed, but would be way too
