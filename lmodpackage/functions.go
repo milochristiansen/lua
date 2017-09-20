@@ -97,6 +97,18 @@ func Open(l *lua.State) int {
 	l.GetTableRaw(tidx) // Grab a reference to package.searchers to use as an upvalue.
 	l.Push("require")
 	l.PushClosure(func(l *lua.State) int {
+		// First check if the module is already loaded.
+		l.Push("_LOADED")
+		l.GetTableRaw(lua.RegistryIndex)
+		l.PushIndex(1)
+		l.GetTableRaw(-2)
+		if !l.IsNil(-1) {
+			return 1
+		}
+		l.Pop(1)
+
+		// Not loaded, so run each searcher in sequence until we find one that returns a loader.
+
 		l.PushIndex(lua.FirstUpVal - 1) // package.searchers
 		searchers := l.AbsIndex(-1)
 
@@ -107,8 +119,12 @@ func Open(l *lua.State) int {
 			if l.GetTableRaw(searchers) != lua.TypFunction {
 				continue // Really should be an error...
 			}
+
+			// Call the searcher
 			l.PushIndex(1)
 			l.Call(1, 2)
+
+			// Check the return value, and call the loader if all is well.
 			if typ := l.TypeOf(-2); typ != lua.TypFunction {
 				if typ != lua.TypNil {
 					msg += l.ToString(-2)
@@ -120,24 +136,16 @@ func Open(l *lua.State) int {
 			l.Insert(-1) // This inserts the module name just below the top item (not counting the item it pops off to insert)
 			l.Call(2, 1)
 
-			l.Push("_LOADED")
-			l.GetTableRaw(lua.RegistryIndex)
-			l.PushIndex(1)
-			l.GetTableRaw(-2)
-
-			// If package.loaded[modname] == nil && <return value> == nil
-			if l.IsNil(-1) && l.IsNil(-3) {
-				// Set package.loaded[modname] to true and return true
+			// If <return value> == nil
+			if l.IsNil(-1) {
+				// Replace <return value> with true
 				l.Pop(1)
-				l.PushIndex(1)
 				l.Push(true)
-				l.SetTableRaw(-3)
-				l.Push(true)
-				return 1
 			}
 
 			// Else set package.loaded[modname] to <return value> and return <return value>
-			l.Pop(1)
+			l.Push("_LOADED")
+			l.GetTableRaw(lua.RegistryIndex)
 			l.PushIndex(1)
 			l.PushIndex(-3)
 			l.SetTableRaw(-3)
