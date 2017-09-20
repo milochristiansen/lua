@@ -226,6 +226,14 @@ single person teams, where the only important use is rolling back bad changes an
 
 * * *
 
+1.1.4
+
+Not sure how I missed this one... Oh well, it should work now.
+
+* `require` was not checking `package.loaded` properly. (lmodpackage/functions.go)
+
+* * *
+
 1.1.3
 
 One of the tests was failing on 32 bit systems, now it isn't.
