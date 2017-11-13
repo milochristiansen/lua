@@ -286,70 +286,7 @@ func (lex *lexer) advance() {
 			lex.makeToken(tknOIndex)
 			break
 		}
-
-		i := 0
-		lex.nextchar()
-		if lex.eof {
-			luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
-		}
-		for lex.match("=") {
-			i++
-			lex.nextchar()
-			if lex.eof {
-				luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
-			}
-		}
-		lex.nextchar()
-		if lex.eof {
-			luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
-		}
-
-	next:
-		for {
-			if lex.eof {
-				luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
-			}
-
-			if lex.match("]") && lex.nmatch("=]") {
-				// Make sure the closing long bracket is the same level as the opener
-				lex.nextchar()
-				if lex.eof {
-					luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
-				}
-
-				k := 0
-				if i > 0 {
-					for ; k < i; k++ {
-						if !lex.match("=") {
-							continue next
-						}
-						lex.nextchar()
-						if lex.eof {
-							luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
-						}
-					}
-				}
-
-				if !lex.match("]") {
-					if k > 0 {
-						stuff := make([]rune, k)
-						stuff[0] = ']'
-						for j := 1; j < k; j++ {
-							stuff[j] = '='
-						}
-						lex.lexeme = append(lex.lexeme, stuff...)
-					} else {
-						lex.lexeme = append(lex.lexeme, ']')
-					}
-					continue
-				}
-				lex.nextchar()
-				break
-			}
-			lex.addLexeme()
-			lex.nextchar()
-		}
-		lex.exlook = &token{string(lex.lexeme), tknString, lex.tokenline}
+		lex.matchRawString()
 	case ']':
 		lex.makeToken(tknCIndex)
 	case '{':
@@ -810,6 +747,66 @@ func (lex *lexer) matchString(delim rune) {
 	lex.nextchar()
 	lex.exlook = &token{string(lex.lexeme), tknString, lex.tokenline}
 	return
+}
+
+func (lex *lexer) matchRawString() {
+	i := 0
+	lex.nextchar()
+	if lex.eof {
+		luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
+	}
+	for lex.match("=") {
+		i++
+		lex.nextchar()
+		if lex.eof {
+			luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
+		}
+	}
+	lex.nextchar()
+	if lex.eof {
+		luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
+	}
+
+next:
+	for {
+		if lex.eof {
+			luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
+		}
+
+		if lex.match("]") && lex.nmatch("=]") {
+			// Make sure the closing long bracket is the same level as the opener
+			lex.nextchar()
+			if lex.eof {
+				luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
+			}
+
+			k := 0
+			buff := []rune{']'}
+			if i > 0 {
+				for ; k < i; k++ {
+					if !lex.match("=") {
+						lex.lexeme = append(lex.lexeme, buff...)
+						continue next
+					}
+					buff = append(buff, lex.char)
+					lex.nextchar()
+					if lex.eof {
+						luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
+					}
+				}
+			}
+
+			if !lex.match("]") {
+				lex.lexeme = append(lex.lexeme, buff...)
+				continue
+			}
+			lex.nextchar()
+			break
+		}
+		lex.addLexeme()
+		lex.nextchar()
+	}
+	lex.exlook = &token{string(lex.lexeme), tknString, lex.tokenline}
 }
 
 // Token
