@@ -226,6 +226,16 @@ single person teams, where the only important use is rolling back bad changes an
 
 * * *
 
+1.1.5
+
+And, another stupid little bug.
+
+* Constructs similar to the following `[=[]==]]=]` were not working properly. The lexer was not properly constructing the
+  lexeme, and it would return the wrong number of equals signs and it would eat the last square bracket. As a bonus I
+  greatly simplified the string lexing code. (ast/lexer.go)
+
+* * *
+
 1.1.4
 
 Not sure how I missed this one... Oh well, it should work now.
