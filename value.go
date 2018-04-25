@@ -332,7 +332,7 @@ func (l *State) getTable(t, k value) value {
 
 func (l *State) setTable(t, k, v value) {
 	tbl, ok := t.(*table)
-	if ok && tbl.Exists(k) {
+	if ok {
 		tbl.SetRaw(k, v)
 		return
 	}
@@ -354,10 +354,6 @@ func (l *State) setTable(t, k, v value) {
 		l.Push(k)
 		l.Push(v)
 		l.Call(3, 0)
-		return
-	}
-	if ok {
-		tbl.SetRaw(k, v)
 		return
 	}
 	luautil.Raise("Value is not a table and has no __newindex meta method.", luautil.ErrTypGenRuntime)

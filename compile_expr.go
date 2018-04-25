@@ -157,29 +157,34 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 			data.keyRK, _ = expr(nn.Key, state, reg+1, false).RK()
 			return *data, 1
 		case *ast.ConstIdent:
+			regs := 1
 			typ, idx := resolveVar(nObj.Value, state)
 			switch typ {
 			case 0:
 				data.itemIdx = idx
 			case 1:
+				rk, usedreg := state.constRK(nObj.Value, reg+regs, nObj.Line())
+				if usedreg {
+					regs++
+				}
 				etyp, eidx := resolveVar("_ENV", state)
 				if etyp == 0 {
-					state.addInst(createABC(opGetTable, reg, eidx, state.constRK(nObj.Value, reg, nObj.Line())), nObj.Line())
+					state.addInst(createABC(opGetTable, reg, eidx, rk), nObj.Line())
 				} else {
-					//state.addInst(createABC(opGetTableUp, reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
-					state.addInst(createABC(opGetTableUp, reg, eidx, state.constRK(nObj.Value, reg, nObj.Line())), nObj.Line())
+					//state.addInst(createABC(opGetTableUp, reg, 0 /*_ENV*/, rk), nObj.Line())
+					state.addInst(createABC(opGetTableUp, reg, eidx, rk), nObj.Line())
 				}
 				idx = reg
+				regs++
 			case 2:
 				data.itemIdx = idx
 				data.isUp = true
 			}
-			regs, keyReg := 2, reg+1
-			if idx != reg {
-				keyReg = reg
-				regs = 1
+			usedreg := false
+			data.keyRK, usedreg = expr(nn.Key, state, reg+regs, false).RK()
+			if usedreg {
+				regs++
 			}
-			data.keyRK, _ = expr(nn.Key, state, keyReg, false).RK()
 			return *data, regs
 		case *ast.Parens:
 			expr(nObj.Inner, state, data.reg, false).To(false)
@@ -195,6 +200,7 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 		panic("UNREACHABLE")
 	case *ast.ConstIdent:
 		typ, idx := resolveVar(nn.Value, state)
+		regs := 0
 		switch typ {
 		case 0: // local
 			data.itemIdx = idx
@@ -209,12 +215,16 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 				data.isUp = true
 			}
 			data.isTable = true
-			data.keyRK = state.constRK(nn.Value, reg, nn.Line())
+			usedreg := false
+			data.keyRK, usedreg = state.constRK(nn.Value, reg, nn.Line())
+			if usedreg {
+				regs++
+			}
 		case 2: // upvalue
 			data.itemIdx = idx
 			data.isUp = true
 		}
-		return *data, 0
+		return *data, regs
 	default:
 		panic("IMPOSSIBLE") // I think?
 	}
@@ -234,13 +244,14 @@ func lowerIdentHelper(n *ast.TableAccessor, state *compState, data *identData) {
 			state.addInst(createABC(opGetTable, data.reg, idx, rk), n.Key.Line())
 		case 1:
 			etyp, eidx := resolveVar("_ENV", state)
+			rk, _ := state.constRK(nObj.Value, data.reg+1, nObj.Line())
 			if etyp == 0 {
-				state.addInst(createABC(opGetTable, data.reg, eidx, state.constRK(nObj.Value, data.reg, nObj.Line())), nObj.Line())
+				state.addInst(createABC(opGetTable, data.reg, eidx, rk), nObj.Line())
 			} else {
 				//state.addInst(createABC(opGetTableUp, data.reg, 0 /*_ENV*/, state.constRK(nObj.Value, data.reg, nObj.Line())), nObj.Line())
-				state.addInst(createABC(opGetTableUp, data.reg, eidx, state.constRK(nObj.Value, data.reg, nObj.Line())), nObj.Line())
+				state.addInst(createABC(opGetTableUp, data.reg, eidx, rk), nObj.Line())
 			}
-			rk, _ := expr(n.Key, state, data.reg+1, false).RK()
+			rk, _ = expr(n.Key, state, data.reg+1, false).RK()
 			state.f.code = append(state.f.code, createABC(opGetTable, data.reg, data.reg, rk))
 		case 2:
 			rk, _ := expr(n.Key, state, data.reg+1, false).RK()

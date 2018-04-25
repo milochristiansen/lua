@@ -457,6 +457,8 @@ func main() {
  5387, 5389, 5392, 5393, 5402, 5405, 5406, 5406, 5416, 5417, 5418, 5420, 5423,
  5423, 5424, 5425, 5426, 5427, 5429, 5435, 5436, 5437, 5437, 5439, 5451, 5452,
  5453, 5474, 5475, 5476, 5487, 5488, 5489, 5490, 5491}
+
+--print(#forward)
 reverse = {}
 for i,v in ipairs(forward) do
   reverse[v] = i
@@ -469,10 +471,10 @@ end
 
 	// Easier to uncomment than change the value
 	//run = false
-	//list = false
-	//luac = false
+	list = false
+	luac = false
 
-	//l.NativeTrace = true
+	l.NativeTrace = true
 
 	var err error
 
