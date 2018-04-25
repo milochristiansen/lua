@@ -142,7 +142,7 @@ func (tbl *table) maybeExtend(key int) bool {
 		}
 		// If array candidates are found in the >50% area above key, extend the array to the top of the overall >50% area.
 		if n > 0 {
-			tbl.extend(o)
+			tbl.extend(k)
 			return true
 		}
 
