@@ -85,9 +85,15 @@ func (state *compState) mklocaladv(name string, p localPatchList) localPatchList
 }
 
 // Returns a valid RK for the given constant.
+// May add a new instruction in case of overflow. reg may be used as a temporary.
 // val MUST be an int64, float64, bool, nil, or string!
-func (state *compState) constRK(val value) int {
-	return rkAsK(state.constK(val))
+func (state *compState) constRK(val value, reg, line int) int {
+	k := state.constK(val)
+	if k > maxIndexRK {
+		state.addInst(createABx(opLoadK, reg, k), line)
+		return reg
+	}
+	return rkAsK(k)
 }
 
 // Returns a valid index for the given constant.

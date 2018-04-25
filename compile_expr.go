@@ -164,10 +164,10 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 			case 1:
 				etyp, eidx := resolveVar("_ENV", state)
 				if etyp == 0 {
-					state.addInst(createABC(opGetTable, reg, eidx, state.constRK(nObj.Value)), nObj.Line())
+					state.addInst(createABC(opGetTable, reg, eidx, state.constRK(nObj.Value, reg, nObj.Line())), nObj.Line())
 				} else {
 					//state.addInst(createABC(opGetTableUp, reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
-					state.addInst(createABC(opGetTableUp, reg, eidx, state.constRK(nObj.Value)), nObj.Line())
+					state.addInst(createABC(opGetTableUp, reg, eidx, state.constRK(nObj.Value, reg, nObj.Line())), nObj.Line())
 				}
 				idx = reg
 			case 2:
@@ -209,7 +209,7 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 				data.isUp = true
 			}
 			data.isTable = true
-			data.keyRK = state.constRK(nn.Value)
+			data.keyRK = state.constRK(nn.Value, reg, nn.Line())
 		case 2: // upvalue
 			data.itemIdx = idx
 			data.isUp = true
@@ -235,10 +235,10 @@ func lowerIdentHelper(n *ast.TableAccessor, state *compState, data *identData) {
 		case 1:
 			etyp, eidx := resolveVar("_ENV", state)
 			if etyp == 0 {
-				state.addInst(createABC(opGetTable, data.reg, eidx, state.constRK(nObj.Value)), nObj.Line())
+				state.addInst(createABC(opGetTable, data.reg, eidx, state.constRK(nObj.Value, data.reg, nObj.Line())), nObj.Line())
 			} else {
-				//state.addInst(createABC(opGetTableUp, data.reg, 0 /*_ENV*/, state.constRK(nObj.Value)), nObj.Line())
-				state.addInst(createABC(opGetTableUp, data.reg, eidx, state.constRK(nObj.Value)), nObj.Line())
+				//state.addInst(createABC(opGetTableUp, data.reg, 0 /*_ENV*/, state.constRK(nObj.Value, data.reg, nObj.Line())), nObj.Line())
+				state.addInst(createABC(opGetTableUp, data.reg, eidx, state.constRK(nObj.Value, data.reg, nObj.Line())), nObj.Line())
 			}
 			rk, _ := expr(n.Key, state, data.reg+1, false).RK()
 			state.f.code = append(state.f.code, createABC(opGetTable, data.reg, data.reg, rk))
@@ -398,6 +398,10 @@ func (e exprData) RK() (int, bool) {
 		}
 		return e.reg, true
 	default:
+		if e.constant > maxIndexRK {
+			state.addInst(createABx(opLoadK, e.reg, e.constant), e.line)
+			return e.reg, true
+		}
 		return rkAsK(e.constant), false
 	}
 }
