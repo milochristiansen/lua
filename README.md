@@ -215,14 +215,17 @@ A note on versions:
 For this project I more-or-less follow semantic versioning, so I try to maintain backwards compatibility across point
 releases. That said I feel free to break minor things in the name of bugfixes. Read the changelog before upgrading!
 
-I don't use a normal version control system for development, so I tend to change whatever I feel like changing with no
-regard to "commit noise". This means that a new release will often have changes in files I did not substantially modify
-(generally I tweaked a comment or some such). To make it easier for other people to separate actual changes from the
-noise, each change listed here will list the files I modified for that change.
 
-(please don't bug me about using version control, I *do* use version control. I just use a custom type designed for
-single person teams, where the only important use is rolling back bad changes and such)
+* * *
 
+1.1.6
+
+Fun with tables! Ok, not so much fun.
+
+* Fixed scripts with lots of constants overflowing RK fields in certain instructions. The proper constant load instructions
+  are emitted in this case now.
+* Tables with lots of empty space at the beginning of the array portion will no longer cause crashes when the array portion
+  is resized.
 
 * * *
 
