@@ -259,8 +259,12 @@ func lowerIdentHelper(n *ast.TableAccessor, state *compState, data *identData) {
 		}
 	case *ast.Parens:
 		expr(nObj.Inner, state, data.reg, false).To(false)
+		rk, _ := expr(n.Key, state, data.reg+1, false).RK()
+		state.addInst(createABC(opGetTable, data.reg, data.reg, rk), n.Key.Line())
 	case *ast.FuncCall:
 		expr(nObj, state, data.reg, false).To(false)
+		rk, _ := expr(n.Key, state, data.reg+1, false).RK()
+		state.addInst(createABC(opGetTable, data.reg, data.reg, rk), n.Key.Line())
 	default:
 		panic("IMPOSSIBLE") // I think?
 	}
