@@ -22,10 +22,12 @@ misrepresented as being the original software.
 
 package lua
 
-import "github.com/milochristiansen/lua/ast"
-import "github.com/milochristiansen/lua/luautil"
-import "sliceutil" // a quick-and-dirty reflection-based slice library (I use it to make stacks, lazy me).
-import "fmt"
+import (
+	"github.com/milochristiansen/lua/ast"
+	"github.com/milochristiansen/lua/luautil"
+	"sliceutil" // a quick-and-dirty reflection-based slice library (I use it to make stacks, lazy me).
+	"fmt"
+)
 
 //import "runtime"
 
