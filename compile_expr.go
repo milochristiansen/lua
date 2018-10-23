@@ -154,7 +154,11 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 		switch nObj := nn.Obj.(type) {
 		case *ast.TableAccessor:
 			lowerIdentHelper(nObj, state, data)
-			data.keyRK, _ = expr(nn.Key, state, reg+1, false).RK()
+			usedreg := false
+			data.keyRK, usedreg = expr(nn.Key, state, reg+1, false).RK()
+			if usedreg {
+				return *data, 2
+			}
 			return *data, 1
 		case *ast.ConstIdent:
 			regs := 1
@@ -188,11 +192,19 @@ func lowerIdent(n ast.Expr, state *compState, reg int) (identData, int) {
 			return *data, regs
 		case *ast.Parens:
 			expr(nObj.Inner, state, data.reg, false).To(false)
-			data.keyRK, _ = expr(nn.Key, state, reg+1, false).RK()
+			usedreg := false
+			data.keyRK, usedreg = expr(nn.Key, state, reg+1, false).RK()
+			if usedreg {
+				return *data, 2
+			}
 			return *data, 1
 		case *ast.FuncCall:
 			expr(nObj, state, data.reg, false).To(false)
-			data.keyRK, _ = expr(nn.Key, state, reg+1, false).RK()
+			usedreg := false
+			data.keyRK, usedreg = expr(nn.Key, state, reg+1, false).RK()
+			if usedreg {
+				return *data, 2
+			}
 			return *data, 1
 		default:
 			luautil.Raise("Syntax error", luautil.ErrTypGenSyntax) // TODO: Better errors
