@@ -461,7 +461,6 @@ func newTableIter(d *table) *tableIter {
 		default:
 			close(i.kill)
 		}
-		println("it works now...")
 	})
 
 	return i
