@@ -448,10 +448,20 @@ func newTableIter(d *table) *tableIter {
 			}
 		}
 		close(result) // Needed so Next will not block after the last key is visited.
+		select {
+		case <-i.kill:
+		default:
+			close(i.kill)
+		}
 	}()
 
 	runtime.SetFinalizer(i, func(i *tableIter) {
-		i.kill <- true
+		select {
+		case <-i.kill:
+		default:
+			close(i.kill)
+		}
+		println("it works now...")
 	})
 
 	return i
@@ -463,4 +473,12 @@ func (i *tableIter) Next() (value, value) {
 		return nil, nil
 	}
 	return k[0], k[1]
+}
+
+func (i *tableIter) Kill() {
+	select {
+	case <-i.kill:
+	default:
+		close(i.kill)
+	}
 }
