@@ -481,7 +481,6 @@ func (l *State) GetIter(i int) {
 	}
 
 	l.Push(newTableIter(tbl))
-
 	l.NewTable(0, 1)
 	l.Push("__call")
 	l.Push(func(l *State) int {
@@ -499,21 +498,18 @@ func (l *State) GetIter(i int) {
 	l.SetMetaTable(-2)
 
 	// Alternate function version
-	//l.Push(func(l *State) int {
-	//	i := l.ToUser(FirstUpVal).(*tableIter)
-	//	k, v := i.Next()
-	//	if k == nil {
-	//		l.Push(k)
-	//		return 1
-	//	}
-	//	l.Push(k)
-	//	l.Push(v)
-	//	return 2
-	//})
-	//f := l.stack.Get(-1).(*function)
-	//f.upVals[0] = &userData{
-	//	data: newTableIter(tbl),
-	//}
+	// l.Push(newTableIter(tbl))
+	// l.PushClosure(func(l *State) int {
+	// 	i := l.ToUser(FirstUpVal - 1).(*tableIter)
+	// 	k, v := i.Next()
+	// 	if k == nil {
+	// 		l.Push(k)
+	// 		return 1
+	// 	}
+	// 	l.Push(k)
+	// 	l.Push(v)
+	// 	return 2
+	// }, -1)
 }
 
 // ForEachRaw is a simple wrapper around GetIter and is provided as a convenience.
