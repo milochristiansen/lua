@@ -24,7 +24,6 @@ package lua
 
 import "github.com/milochristiansen/lua/ast"
 import "github.com/milochristiansen/lua/luautil"
-import "sliceutil" // a quick-and-dirty reflection-based slice library (I use it to make stacks, lazy me).
 import "fmt"
 
 //import "runtime"
@@ -68,7 +67,7 @@ func (state *compState) mklocal(name string, soff int) {
 	state.f.localVars = append(state.f.localVars, localVar{
 		name: name,
 		sPC:  int32(len(state.f.code) + soff),
-		ePC:  int32(sliceutil.Top(&state.blocks).(*blockStuff).bpc),
+		ePC:  int32(state.blocks[len(state.blocks)-1].bpc),
 	})
 }
 
@@ -79,7 +78,7 @@ func (state *compState) mklocaladv(name string, p localPatchList) localPatchList
 	state.f.localVars = append(state.f.localVars, localVar{
 		name: name,
 		sPC:  -500, // magic, no special significance except it isn't any of the other magic values and is lower than any valid value
-		ePC:  int32(sliceutil.Top(&state.blocks).(*blockStuff).bpc),
+		ePC:  int32(state.blocks[len(state.blocks)-1].bpc),
 	})
 	return append(p, l)
 }
@@ -235,7 +234,7 @@ func prepBlock(state *compState) {
 	// end value.
 	// Locals that are in scope are guaranteed to have a sPC that is greater than
 	// their ePC.
-	sliceutil.Push(&state.blocks, &blockStuff{bpc: len(state.f.code) - 1, gotos: map[string][]jumpDat{}})
+	state.blocks = append(state.blocks, &blockStuff{bpc: len(state.f.code) - 1, gotos: map[string][]jumpDat{}})
 }
 
 func preppedBlock(block []ast.Stmt, state *compState, epilogue int) {
@@ -248,7 +247,8 @@ func preppedBlock(block []ast.Stmt, state *compState, epilogue int) {
 
 func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 	// Patch this block's local ePC values
-	stuff := sliceutil.Pop(&state.blocks).(*blockStuff)
+	stuff := state.blocks[len(state.blocks)-1]
+	state.blocks = state.blocks[:len(state.blocks)-1]
 	locals := 0
 	for i, l := range state.f.localVars {
 		if l.sPC > l.ePC && l.ePC == int32(stuff.bpc) {
@@ -299,7 +299,7 @@ func closeBlock(block []ast.Stmt, state *compState, epilogue, off int) {
 	}
 
 	// Promote any unresolved gotos in this block to the next block up
-	pstuff := sliceutil.Top(&state.blocks).(*blockStuff)
+	pstuff := state.blocks[len(state.blocks)-1]
 	for t, ts := range stuff.gotos {
 		pstuff.gotos[t] = append(pstuff.gotos[t], ts...)
 	}
@@ -480,8 +480,8 @@ func statement(n ast.Stmt, state *compState) {
 		if thenend == len(state.f.code) {
 			// If there was no else block or the else block contained no code remove the unnecessary jump instruction
 			list.patch(state.f, thenend-1)
-			sliceutil.Pop(&state.f.code)
-			sliceutil.Pop(&state.f.lineInfo)
+			state.f.code = state.f.code[:len(state.f.code)-1]
+			state.f.lineInfo = state.f.lineInfo[:len(state.f.lineInfo)-1]
 		} else {
 			// Else patch the jump instruction so it skips the else block
 			list.patch(state.f, thenend)
@@ -493,19 +493,23 @@ func statement(n ast.Stmt, state *compState) {
 		if list == nil && !k {
 			return
 		}
-		sliceutil.Push(&state.breaks, patchList([]int{}))
-		sliceutil.Push(&state.continues, patchList([]int{}))
+		state.breaks = append(state.breaks, patchList([]int{}))
+		state.continues = append(state.continues, patchList([]int{}))
 		block(nn.Block, state)
-		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp := state.continues[len(state.continues)-1]
+		state.continues = state.continues[:len(state.continues)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 		state.addInst(createAsBx(opJump, 0, mkoffset(len(state.f.code), begin)), nn.Line()) // Go back to the top
 		if list != nil {
 			list.patch(state.f, len(state.f.code)) // Set the false jump target to the next instruction (does not exist yet).
 		}
-		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp = state.breaks[len(state.breaks)-1]
+		state.breaks = state.breaks[:len(state.breaks)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 	case *ast.RepeatUntilLoop:
 		begin := len(state.f.code)
-		sliceutil.Push(&state.breaks, patchList([]int{}))
-		sliceutil.Push(&state.continues, patchList([]int{}))
+		state.breaks = append(state.breaks, patchList([]int{}))
+		state.continues = append(state.continues, patchList([]int{}))
 
 		// I hate repeat-until.
 		// I need to manually parse the block here, then jump through hoops to make sure the upvalues are not closed
@@ -514,7 +518,9 @@ func statement(n ast.Stmt, state *compState) {
 		for _, n := range nn.Block {
 			statement(n, state)
 		}
-		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp := state.continues[len(state.continues)-1]
+		state.continues = state.continues[:len(state.continues)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 		list, k := expr(nn.Cond, state, state.nextReg, false).Bool()
 		if list == nil {
 			if k {
@@ -526,7 +532,9 @@ func statement(n ast.Stmt, state *compState) {
 			closeBlock(nn.Block, state, 0, 0)
 			list.loop(state.f, begin, state.nextReg+1) // Set the false jump target to the loop beginning.
 		}
-		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp = state.breaks[len(state.breaks)-1]
+		state.breaks = state.breaks[:len(state.breaks)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 
 	case *ast.ForLoopNumeric:
 		prepBlock(state)
@@ -544,13 +552,17 @@ func statement(n ast.Stmt, state *compState) {
 		prep := patchList([]int{len(state.f.code)})
 		state.addInst(createAsBx(opForPrep, initReg, 0), nn.Line())
 		ltop := len(state.f.code)
-		sliceutil.Push(&state.breaks, patchList([]int{}))
-		sliceutil.Push(&state.continues, patchList([]int{}))
+		state.breaks = append(state.breaks, patchList([]int{}))
+		state.continues = append(state.continues, patchList([]int{}))
 		preppedBlock(nn.Block, state, 1)
 		lbottom := len(state.f.code)
-		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp := state.continues[len(state.continues)-1]
+		state.continues = state.continues[:len(state.continues)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 		state.addInst(createAsBx(opForLoop, initReg, mkoffset(lbottom, ltop)), nn.Line())
-		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp = state.breaks[len(state.breaks)-1]
+		state.breaks = state.breaks[:len(state.breaks)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 		prep.patch(state.f, lbottom)
 	case *ast.ForLoopGeneric:
 		initReg := state.nextReg
@@ -566,14 +578,18 @@ func statement(n ast.Stmt, state *compState) {
 		begin := patchList([]int{len(state.f.code)})
 		state.addInst(createAsBx(opJump, 0, 0), nn.Line())
 		ltop := len(state.f.code)
-		sliceutil.Push(&state.breaks, patchList([]int{}))
-		sliceutil.Push(&state.continues, patchList([]int{}))
+		state.breaks = append(state.breaks, patchList([]int{}))
+		state.continues = append(state.continues, patchList([]int{}))
 		preppedBlock(nn.Block, state, 2)
 		state.addInst(createABC(opTForCall, initReg, 0, len(nn.Locals)), nn.Line())
 		lbottom := len(state.f.code)
-		sliceutil.Pop(&state.continues).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp := state.continues[len(state.continues)-1]
+		state.continues = state.continues[:len(state.continues)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 		state.addInst(createAsBx(opTForLoop, initReg+2, mkoffset(lbottom, ltop)), nn.Line())
-		sliceutil.Pop(&state.breaks).(patchList).loop(state.f, len(state.f.code), state.nextReg+1)
+		tmp = state.breaks[len(state.breaks)-1]
+		state.breaks = state.breaks[:len(state.breaks)-1]
+		tmp.loop(state.f, len(state.f.code), state.nextReg+1)
 		begin.patch(state.f, lbottom-1)
 	case *ast.Goto:
 		if nn.IsBreak {
@@ -592,7 +608,7 @@ func statement(n ast.Stmt, state *compState) {
 			break
 		}
 
-		stuff := sliceutil.Top(&state.blocks).(*blockStuff)
+		stuff := state.blocks[len(state.blocks)-1]
 		stuff.gotos[nn.Label] = append(stuff.gotos[nn.Label], jumpDat{
 			label: nn.Label,
 			pc:    len(state.f.code),
@@ -601,7 +617,7 @@ func statement(n ast.Stmt, state *compState) {
 		})
 		state.addInst(createAsBx(opJump, 0, 0), nn.Line())
 	case *ast.Label:
-		stuff := sliceutil.Top(&state.blocks).(*blockStuff)
+		stuff := state.blocks[len(state.blocks)-1]
 		stuff.labels = append(stuff.labels, jumpDat{
 			label: nn.Label,
 			pc:    len(state.f.code),

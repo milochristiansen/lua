@@ -24,7 +24,6 @@ package lua
 
 import "github.com/milochristiansen/lua/ast"
 import "github.com/milochristiansen/lua/luautil"
-import "sliceutil" // a quick-and-dirty reflection-based slice library (I use it to make stacks, lazy me).
 
 // TODO: It is possible to have more constants than can be fit into an Bx field, in which case a
 // LOADKX instruction should be used.
@@ -679,7 +678,7 @@ func expr(e ast.Expr, state *compState, reg int, boolRev bool) exprData {
 		f := compile(ee, state)
 		fi := len(state.f.prototypes)
 		state.f.prototypes = append(state.f.prototypes, *f)
-		sliceutil.Top(&state.blocks).(*blockStuff).hasUp = true // Possibly not, but better lazy than sorry
+		state.blocks[len(state.blocks)-1].hasUp = true // Possibly not, but better lazy than sorry
 		state.addInst(createABx(opClosure, reg, fi), ee.Line())
 		rtn.register = true
 	case *ast.TableConstructor:
