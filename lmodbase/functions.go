@@ -206,7 +206,7 @@ var functions = map[string]lua.NativeFunction{
 			l.Push(err.Error())
 			return 2
 		}
-		return l.AbsIndex(-1) - 1
+		return l.AbsIndex(-1)
 	},
 	"print": func(l *lua.State) int {
 		top := l.AbsIndex(-1)
