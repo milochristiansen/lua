@@ -213,7 +213,12 @@ func TestTable(t *testing.T) {
 	assert(t, l.AbsIndex(-1) == 0, "Items remain on stack after all values popped.")
 
 	// Make sure nil is not a valid key
-	assert(t, !f(nil), "Nil acting as valid key.")
+	err := l.Protect(func() {
+		f2(nil, nil)
+	})
+	if err == nil {
+		t.Error("Setting nil key does not raise error.")
+	}
 
 	// And finally do some equivalent key tests
 	assert(t, f2(1, 1.0), "Equivalent keys failing. (1, 1.0)")

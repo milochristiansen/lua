@@ -29,6 +29,8 @@ package lua
 import "math"
 import "runtime"
 
+import "github.com/milochristiansen/lua/luautil"
+
 // Set to 0 for zero based table indexing. This is only partly tested!
 var TableIndexOffset = 1
 
@@ -239,7 +241,7 @@ func (tbl *table) existsInt(k int64) bool {
 func (tbl *table) SetRaw(k, v value) {
 	switch idx := k.(type) {
 	case nil:
-		return
+		luautil.Raise("Cannot set nil table index.", luautil.ErrTypGenRuntime)
 	case float64:
 		if math.IsNaN(idx) {
 			return
