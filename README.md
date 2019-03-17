@@ -200,7 +200,6 @@ The list is (roughly) in priority order.
 * Improve compilation of `and` and `or`.
 * Fix jumping to a label at the end of a block.
 * Fix `CONCAT` so it performs better when there is a value with a `__concat` metamethod.
-* (vendor/sliceutil) Replace that terrible hack I use for a stack library with proper stack types.
 * (supermeta) Look into allowing scripts to call functions/methods. It's certainly possible, but possibly difficult
   (possible not as difficult as I think).
 * Marshaling the AST as XML works poorly at best. The main problem is that some items retain their type info, and others
@@ -215,6 +214,17 @@ A note on versions:
 For this project I more-or-less follow semantic versioning, so I try to maintain backwards compatibility across point
 releases. That said I feel free to break minor things in the name of bugfixes. Read the changelog before upgrading!
 
+
+* * *
+
+1.1.7
+
+* Function calls or parenthesized expressions that are followed by table indexers are now properly compiled (Fixed #13).
+* The compiler sometimes did not always mark "used" the proper number of registers when compiling identifiers (Fixed #16).
+* Fixed the table iterator not finalizing (Fixed #17).
+* Removed my hacky slice library and just did things properly (Fixed #18).
+* Fix `pcall` not returning `true` on success (Fixed #19).
+* Fixed setting a nil index in a table not raising an error (Fixed #20).
 
 * * *
 
