@@ -648,8 +648,9 @@ func (l *State) ConvertString(i int) {
 		l.Push(meth)
 		l.Push(v)
 		l.Call(1, 1)
+		return
 	}
-	toString(v)
+	l.Push(toString(v))
 }
 
 // DumpFunction converts the Lua function at the given index to a binary chunk. The returned value may
