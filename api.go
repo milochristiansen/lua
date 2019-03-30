@@ -644,12 +644,13 @@ func (l *State) ConvertString(i int) {
 	v := l.get(i)
 
 	meth := l.hasMetaMethod(v, "__tostring")
-	if meth != nil {
+	if meth == nil {
+		l.Push(toString(v))
+	} else {
 		l.Push(meth)
 		l.Push(v)
 		l.Call(1, 1)
 	}
-	toString(v)
 }
 
 // DumpFunction converts the Lua function at the given index to a binary chunk. The returned value may
