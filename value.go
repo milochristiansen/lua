@@ -297,6 +297,18 @@ func tryInt(v value) (int64, bool) {
 	}
 }
 
+// Used in the compare function for int->float comparisons.
+func forceInt(v value) int64 {
+	switch v2 := v.(type) {
+	case int64:
+		return v2
+	case float64:
+		return int64(v2)
+	}
+	luautil.Raise("Invalid conversion to integer: Not number", luautil.ErrTypGenRuntime)
+	panic("UNREACHABLE")
+}
+
 func (l *State) getTable(t, k value) value {
 	tbl, ok := t.(*table)
 	if ok && tbl.Exists(k) {
@@ -640,7 +652,7 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 				}
 
 				// Weird, but this is what the reference implementation does.
-				return toInt(a) == toInt(b)
+				return forceInt(a) == forceInt(b)
 
 			case TypString:
 				return a.(string) == b.(string)
@@ -671,7 +683,7 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 				}
 
 				// Weird, but this is what the reference implementation does.
-				return toInt(a) < toInt(b)
+				return forceInt(a) < forceInt(b)
 
 			case TypString:
 				return a.(string) < b.(string) // Fix me, should be locale sensitive, not lexical
@@ -700,7 +712,7 @@ func (l *State) compare(op opCode, a, b value, raw bool) bool {
 				}
 
 				// Weird, but this is what the reference implementation does.
-				return toInt(a) <= toInt(b)
+				return forceInt(a) <= forceInt(b)
 
 			case TypString:
 				return a.(string) <= b.(string) // Fix me, should be locale sensitive, not lexical
