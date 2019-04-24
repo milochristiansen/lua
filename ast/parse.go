@@ -302,11 +302,6 @@ func (p *parser) statement() Stmt {
 		line := p.l.current.Line
 		p.l.getCurrent(tknName)
 		return stmtLine(&Goto{Label: p.l.current.Lexeme}, line)
-	case tknOParen:
-		p.l.getCurrent(tknOParen)
-		ident := p.expression()
-		p.l.getCurrent(tknCParen)
-		return Stmt(p.funcCall(ident).(*FuncCall))
 	default:
 		ident := p.suffixedValue()
 		line := p.l.current.Line
