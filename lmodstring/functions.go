@@ -118,7 +118,7 @@ var functions = map[string]lua.NativeFunction{
 
 		n := j - i + 1
 		for k := int64(0); k < n; k++ {
-			l.Push(int64(str[k+j-1]))
+			l.Push(int64(str[k+i-1]))
 		}
 		return int(n)
 	},
