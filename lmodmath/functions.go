@@ -39,7 +39,7 @@ func Open(l *lua.State) int {
 	l.SetTableFunctions(tidx, functions)
 
 	l.Push("huge")
-	l.Push(math.MaxFloat64)
+	l.Push(math.Inf(1))
 	l.SetTableRaw(tidx)
 
 	l.Push("maxinteger")
