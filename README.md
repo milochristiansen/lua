@@ -122,7 +122,6 @@ The following standard functions/variables are not available:
 The following standard modules are not available:
 
 * `coroutine` (no coroutine support yet, ask if you need it)
-* `utf8` (too lazy to implement it, ask if you need it)
 * `io` (violates my security policy)
 * `os` (violates my security policy)
 * `debug` (violates my security policy, if you really need something from here ask)
@@ -214,6 +213,17 @@ A note on versions:
 For this project I more-or-less follow semantic versioning, so I try to maintain backwards compatibility across point
 releases. That said I feel free to break minor things in the name of bugfixes. Read the changelog before upgrading!
 
+
+* * *
+
+Next
+
+* Fixed `State.ConvertString` so it actually works (based on PR #21 by ofunc)
+* Fixed a really weird issue where statements that started with a parenthesized expression would be assumed to be a function
+  call and error out if they were not. (Fixed #23)
+* Fixed issue in `string.byte`. (PR #24 by ofunc)
+* Fixed `math.huge` to have the correct value. (PR #25 by ofunc)
+* Added `utf8` package (`github.com/milochristiansen/lua/lmodutf8`) (PR #26 by ofunc)
 
 * * *
 
