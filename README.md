@@ -30,6 +30,9 @@ All functions (including most of the internal functions) are documented to one d
 API is designed to be easy to use, and everything was added because I needed it. There are no "bloat" functions added
 because I thought they could be useful.
 
+Note that another version of this exists over at [ofunc/lua](https://github.com/ofunc/lua). That version has some
+interesting changes/features, I suggest you give it look to see if it suits your needs better.
+
 
 Loading Code:
 ------------------------------------------------------------------------------------------------------------------------
