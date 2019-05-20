@@ -24,6 +24,7 @@ package ast
 
 import "strings"
 import "unicode"
+import "unicode/utf8"
 import "github.com/milochristiansen/lua/luautil"
 
 const (
@@ -616,16 +617,24 @@ func (lex *lexer) matchNumber() {
 	lex.exlook = &token{n, tknFloat, lex.tokenline}
 }
 
-func hexval(r rune) rune {
+func hexval(r rune) byte {
 	if r >= 'a' && r <= 'f' {
-		return r - 'a' + 10
+		return byte(r - 'a' + 10)
 	} else if r >= 'A' && r <= 'F' {
-		return r - 'A' + 10
+		return byte(r - 'A' + 10)
 	} else if r >= '0' && r <= '9' {
-		return r - '0'
+		return byte(r - '0')
 	}
 	luautil.Raise("Invalid hexadecimal digit in escape", luautil.ErrTypGenLexer)
 	panic("UNREACHABLE")
+}
+
+func appendRune(dest []byte, uc rune) []byte {
+	var buff [utf8.UTFMax]byte
+
+	n := utf8.EncodeRune(buff[:], uc)
+
+	return append(dest, buff[:n]...)
 }
 
 func (lex *lexer) matchString(delim rune) {
@@ -638,6 +647,8 @@ func (lex *lexer) matchString(delim rune) {
 		lex.nextchar()
 		return
 	}
+
+	var strbytes []byte
 
 	for lex.char != delim {
 		if lex.eof {
@@ -655,27 +666,27 @@ func (lex *lexer) matchString(delim rune) {
 			case '\n':
 				fallthrough
 			case 'n':
-				lex.lexeme = append(lex.lexeme, '\n')
+				strbytes = appendRune(strbytes, '\n')
 			case 'r':
-				lex.lexeme = append(lex.lexeme, '\r')
+				strbytes = appendRune(strbytes, '\r')
 			case 't':
-				lex.lexeme = append(lex.lexeme, '\t')
+				strbytes = appendRune(strbytes, '\t')
 			case 'v':
-				lex.lexeme = append(lex.lexeme, '\v')
+				strbytes = appendRune(strbytes, '\v')
 			case 'a':
-				lex.lexeme = append(lex.lexeme, '\a')
+				strbytes = appendRune(strbytes, '\a')
 			case 'b':
-				lex.lexeme = append(lex.lexeme, '\b')
+				strbytes = appendRune(strbytes, '\b')
 			case 'f':
-				lex.lexeme = append(lex.lexeme, '\f')
+				strbytes = appendRune(strbytes, '\f')
 			case '"':
-				lex.lexeme = append(lex.lexeme, '"')
+				strbytes = appendRune(strbytes, '"')
 			case '\'':
-				lex.lexeme = append(lex.lexeme, '\'')
+				strbytes = appendRune(strbytes, '\'')
 			case '\\':
-				lex.lexeme = append(lex.lexeme, '\\')
+				strbytes = appendRune(strbytes, '\\')
 			case '0':
-				lex.lexeme = append(lex.lexeme, '\000')
+				strbytes = appendRune(strbytes, '\000')
 			case 'z':
 				for lex.match("\n\r \t") {
 					lex.nextchar()
@@ -684,7 +695,7 @@ func (lex *lexer) matchString(delim rune) {
 					}
 				}
 			case 'x':
-				r := '\000'
+				r := byte('\000')
 				lex.nextchar()
 				r = hexval(lex.char) << 4
 				lex.nextchar()
@@ -692,7 +703,7 @@ func (lex *lexer) matchString(delim rune) {
 				if lex.eof {
 					luautil.Raise("Unexpected EOF while reading a string", luautil.ErrTypGenLexer)
 				}
-				lex.lexeme = append(lex.lexeme, r)
+				strbytes = append(strbytes, r)
 			case 'u':
 				lex.nextchar()
 				if lex.eof {
@@ -712,17 +723,17 @@ func (lex *lexer) matchString(delim rune) {
 						break
 					}
 
-					r = (r << 4) + hexval(lex.char)
+					r = (r << 4) + rune(hexval(lex.char))
 				}
 				if r > 0x10FFFF {
 					luautil.Raise("Unicode escape value is too large", luautil.ErrTypGenLexer)
 				}
-				lex.lexeme = append(lex.lexeme, r)
+				strbytes = appendRune(strbytes, r)
 			default:
 				if lex.matchNumeric() {
-					r := '\000'
+					r := byte('\000')
 					for i := 0; i < 3 && lex.matchNumeric(); i++ {
-						r = 10*r + lex.char - '0'
+						r = 10*r + byte(lex.char) - '0'
 
 						lex.nextchar()
 						if lex.eof {
@@ -732,7 +743,7 @@ func (lex *lexer) matchString(delim rune) {
 					if r > 0xFF {
 						luautil.Raise("Decimal escape value is too large", luautil.ErrTypGenLexer)
 					}
-					lex.lexeme = append(lex.lexeme, r)
+					strbytes = append(strbytes, r)
 				}
 				luautil.Raise("Invalid escape sequence while reading a string", luautil.ErrTypGenLexer)
 			}
@@ -741,11 +752,11 @@ func (lex *lexer) matchString(delim rune) {
 			continue
 		}
 
-		lex.addLexeme()
+		strbytes = appendRune(strbytes, lex.char)
 		lex.nextchar()
 	}
 	lex.nextchar()
-	lex.exlook = &token{string(lex.lexeme), tknString, lex.tokenline}
+	lex.exlook = &token{string(strbytes), tknString, lex.tokenline}
 	return
 }
 
