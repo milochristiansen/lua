@@ -456,7 +456,7 @@ func (stk *stack) TailFrame(fn *function, fi, args int) {
 	}
 
 	frame.nArgs = adargs
-	frame.nRet = -1
+	//frame.nRet = -1
 	frame.retBase = -1
 	// frame.retTo = fi // No touch! This is the index in the PREVIOUS FRAME, not the current frame!
 
