@@ -370,6 +370,10 @@ func toPtr(l *lua.State, src reflect.Value) {
 }
 func fromPtr(l *lua.State, dest reflect.Value, src int) error {
 	dest = dest.Elem()
+	
+	if !dest.IsValid() {
+		return ErrCantConv
+	}
 
 	// If nil and a concrete type make new item.
 	// This *should* be all that is needed for auto-vivification.
