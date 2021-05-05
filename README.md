@@ -219,7 +219,7 @@ releases. That said I feel free to break minor things in the name of bugfixes. R
 
 * * *
 
-Next
+1.1.8
 
 * Fixed `State.ConvertString` so it actually works (based on PR #21 by ofunc)
 * Fixed a really weird issue where statements that started with a parenthesized expression would be assumed to be a function
