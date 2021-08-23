@@ -744,8 +744,9 @@ func (lex *lexer) matchString(delim rune) {
 						luautil.Raise("Decimal escape value is too large", luautil.ErrTypGenLexer)
 					}
 					strbytes = append(strbytes, r)
+				} else {
+					luautil.Raise("Invalid escape sequence while reading a string", luautil.ErrTypGenLexer)
 				}
-				luautil.Raise("Invalid escape sequence while reading a string", luautil.ErrTypGenLexer)
 			}
 
 			lex.nextchar()
