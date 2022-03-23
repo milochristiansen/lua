@@ -123,9 +123,9 @@ func (stk *stack) ensure(i int) {
 	if i < ssize {
 		return
 	}
-	needed := i - ssize
-	if ssize+needed <= cap(stk.data) {
-		stk.data = stk.data[:ssize+needed+1]
+	needed := i - ssize + 1
+	if ssize+needed < cap(stk.data) {
+		stk.data = stk.data[:ssize+needed]
 	} else {
 		stk.data = append(stk.data, make([]value, needed)...)
 	}
