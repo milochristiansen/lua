@@ -744,6 +744,14 @@ func (lex *lexer) matchString(delim rune) {
 						luautil.Raise("Decimal escape value is too large", luautil.ErrTypGenLexer)
 					}
 					strbytes = append(strbytes, r)
+					// The inner loop above has already advanced past the last
+					// digit, so lex.char is now the character *after* the
+					// escape. Skip the outer nextchar() at the bottom of the
+					// escape block, otherwise we would silently consume the
+					// character following the escape (e.g. the closing quote
+					// in "\128", which then makes the lexer run off past the
+					// end of the string).
+					continue
 				} else {
 					luautil.Raise("Invalid escape sequence while reading a string", luautil.ErrTypGenLexer)
 				}
